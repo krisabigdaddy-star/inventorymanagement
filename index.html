@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse Management Dashboard</title>
+    <!-- Tailwind CSS for Modern UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for Excel/CSV Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; }
+        .chart-bar { transition: width 1s ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                    <i data-lucide="package" class="w-8 h-8 text-blue-600"></i>
+                    Warehouse Management Dashboard
+                </h1>
+                <p class="text-slate-500 mt-1">วิเคราะห์ข้อมูล Stock Onhand แยกตาม Company, Location และ BU</p>
+                <div id="update-date-container" class="mt-2 hidden inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                    <span>ข้อมูลอัปเดตล่าสุด: <span id="ref-date-text">-</span></span>
+                </div>
+            </div>
+
+            <!-- Upload Zone -->
+            <div id="drop-zone" class="relative flex items-center justify-center border-2 border-dashed border-slate-300 rounded-lg p-4 bg-white hover:bg-slate-50 cursor-pointer transition-colors w-full md:w-auto">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="upload-cloud" class="w-5 h-5 text-slate-500"></i>
+                    <span id="upload-status" class="text-sm text-slate-600 font-medium">ลากไฟล์ CSV หรือ Excel วาง หรือ คลิกเพื่ออัปโหลด</span>
+                    <input type="file" id="file-input" accept=".csv, .xlsx, .xls" class="hidden">
+                </label>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center mb-6">
+            <div class="flex items-center gap-2 text-slate-600 font-medium">
+                <i data-lucide="filter" class="w-4 h-4"></i> ตัวกรองข้อมูล:
+            </div>
+            <select id="filter-company" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]">
+                <option value="ALL">ทุกบริษัท (All)</option>
+            </select>
+            <select id="filter-bu" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]">
+                <option value="ALL">ทุกแผนก (All)</option>
+            </select>
+            <select id="filter-location" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]">
+                <option value="ALL">ทุกสถานที่ (All)</option>
+            </select>
+            <select id="filter-aging" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]">
+                <option value="ALL">ทุกช่วง Aging</option>
+            </select>
+            <select id="filter-status" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]">
+                <option value="ALL">ทุกสถานะสินค้า</option>
+                <option value="EXPIRED">เฉพาะที่หมดอายุ</option>
+                <option value="WARNING">เฉพาะที่ใกล้หมดอายุ</option>
+                <option value="GOOD">ปกติ (Good)</option>
+            </select>
+            
+            <div class="ml-auto text-xs text-slate-400">
+                พบข้อมูล <span id="filtered-count">0</span> รายการ
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="kpi-container"></div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
+                    <i data-lucide="calendar" class="w-5 h-5 text-slate-400"></i> Inventory Aging (อายุสินค้า)
+                </h3>
+                <div id="aging-chart-container" class="space-y-4"></div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-slate-400"></i> มูลค่าสินค้าแยกตาม BU (Top 5)
+                </h3>
+                <div id="bu-chart-container" class="space-y-5"></div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <i data-lucide="map-pin" class="w-5 h-5 text-slate-400"></i> ปริมาณและมูลค่าแยกตาม Location (LOCATION_CODE)
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Location Code</th>
+                                <th class="px-4 py-3 text-right">ปริมาณรวม (Qty)</th>
+                                <th class="px-4 py-3 text-right">มูลค่ารวม (Value)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="location-summary-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detail Table -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h3 class="font-bold text-slate-800">รายการสินค้าในคลัง (Stock Details)</h3>
+                <div class="relative w-full md:w-auto">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                    <input id="search-input" type="text" placeholder="ค้นหา ITEM CODE หรือ LOT..." class="pl-9 pr-4 py-1.5 text-sm border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 w-full">
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                        <tr>
+                            <th class="px-6 py-3">Item Code</th>
+                            <th class="px-6 py-3">Description</th>
+                            <th class="px-6 py-3">Lot Number</th>
+                            <th class="px-6 py-3">Exp Date</th>
+                            <th class="px-6 py-3 text-right">Exp Remaining (Days)</th>
+                            <th class="px-6 py-3 text-right">Qty</th>
+                            <th class="px-6 py-3 text-right">Value (฿)</th>
+                            <th class="px-6 py-3">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-detail-body"></tbody>
+                </table>
+            </div>
+            <div id="pagination-info" class="px-6 py-3 bg-slate-50 text-center text-xs text-slate-400 border-t"></div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let filteredData = [];
+
+        lucide.createIcons();
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const uploadStatus = document.getElementById('upload-status');
+        const filterCompany = document.getElementById('filter-company');
+        const filterBU = document.getElementById('filter-bu');
+        const filterLocation = document.getElementById('filter-location');
+        const filterAging = document.getElementById('filter-aging');
+        const filterStatus = document.getElementById('filter-status');
+        const searchInput = document.getElementById('search-input');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileUpload);
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('bg-blue-50', 'border-blue-500'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('bg-blue-50', 'border-blue-500'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-blue-50', 'border-blue-500');
+            const file = e.dataTransfer.files[0];
+            if (file) processFile(file);
+        });
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (file) processFile(file);
+        }
+
+        function processFile(file) {
+            uploadStatus.innerText = "กำลังประมวลผล...";
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
+                    rawData = enrichData(jsonData);
+                    updateFilterOptions();
+                    applyFilters();
+                    uploadStatus.innerText = "อัปโหลดสำเร็จ: " + file.name;
+                } catch (err) {
+                    console.error(err);
+                    alert("เกิดข้อผิดพลาดในการอ่านไฟล์ค่ะ");
+                    uploadStatus.innerText = "ลากไฟล์มาวาง หรือ คลิกเพื่ออัปโหลด";
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // ฟังก์ชันช่วยในการอ่านวันที่และแก้ไขปัญหา 19xx พร้อมสลับวัน/เดือน
+        function parseCustomDate(dateStr) {
+            if (!dateStr) return null;
+            if (dateStr instanceof Date) return dateStr;
+            if (typeof dateStr === 'number') {
+                return new Date(Math.round((dateStr - 25569) * 86400 * 1000));
+            }
+            const safeStr = String(dateStr).trim();
+            if (!safeStr) return null;
+
+            const datePart = safeStr.split(/[\sT]/)[0];
+            const separator = datePart.includes('/') ? '/' : '-';
+            const parts = datePart.split(separator);
+
+            if (parts.length === 3) {
+                let p0 = parseInt(parts[0], 10);
+                let p1 = parseInt(parts[1], 10);
+                let p2 = parseInt(parts[2], 10);
+
+                let y, m, d;
+
+                // ตรวจสอบว่าส่วนไหนคือปี
+                if (p0 > 1000) { // กรณี yyyy-mm-dd
+                    y = p0;
+                    // สลับ วัน กับ เดือน ตามคำขอ: เดิมส่วนที่สองคือเดือน (p1) ให้เป็นวัน, ส่วนที่สามคือวัน (p2) ให้เป็นเดือน
+                    m = p2 - 1;
+                    d = p1;
+                } else { // กรณี dd/mm/yyyy หรือ mm/dd/yyyy
+                    // แก้ไขปี 19xx โดยเช็คว่าถ้า p2 < 100 ให้บวก 2000
+                    y = (p2 < 100) ? (p2 + 2000) : p2;
+                    // สลับ วัน กับ เดือน ตามคำขอ: เดิมส่วนแรกคือวัน (p0) ให้เป็นเดือน, ส่วนที่สองคือเดือน (p1) ให้เป็นวัน
+                    m = p0 - 1;
+                    d = p1;
+                }
+                return new Date(y, m, d);
+            }
+            const fb = new Date(datePart);
+            return isNaN(fb) ? null : fb;
+        }
+
+        function formatDisplayDate(dateVal) {
+            const d = parseCustomDate(dateVal);
+            if (!d) return dateVal || '-';
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        function enrichData(dataList) {
+            return dataList.map(item => {
+                const newItem = { ...item };
+                if (!newItem.AGING_BUCKETS) newItem.AGING_BUCKETS = 'Unknown';
+                
+                if (newItem.EXPDATE_COUNT !== undefined && newItem.EXPDATE_COUNT !== null && newItem.EXPDATE_COUNT !== '') {
+                    const expCount = parseInt(newItem.EXPDATE_COUNT, 10);
+                    if (!isNaN(expCount)) {
+                        if (expCount < 0) newItem.LOT_STATUC_CODE = 'EXPIRED';
+                        else if (expCount <= 30) newItem.LOT_STATUC_CODE = 'WARNING';
+                        else newItem.LOT_STATUC_CODE = 'GOOD';
+                    }
+                }
+                newItem.PRIMARY_TRANSACTION_QUANTITY = parseFloat(newItem.PRIMARY_TRANSACTION_QUANTITY || 0);
+                newItem.AMOUNT_VALUE = parseFloat(newItem.AMOUNT_VALUE || 0);
+                return newItem;
+            });
+        }
+
+        function updateFilterOptions() {
+            populateSelect(filterCompany, ['ALL', ...new Set(rawData.map(d => d.COMID).filter(Boolean))]);
+            populateSelect(filterBU, ['ALL', ...new Set(rawData.map(d => d.SUBINVETENTORY_BU).filter(Boolean))]);
+            populateSelect(filterLocation, ['ALL', ...new Set(rawData.map(d => d.LOCATION_CODE).filter(Boolean))]);
+            populateSelect(filterAging, ['ALL', '(1) 0-30 Day', '(2) 31-60 Day', '(3) 61-90 Day', '(4) 91-120 Day', '(5) 121-150 Day', '(6) 151-180 Day', '(7) 180 Day Up']);
+        }
+
+        function populateSelect(selectEl, options) {
+            const currentVal = selectEl.value;
+            selectEl.innerHTML = options.map(opt => `<option value="${opt}">${opt === 'ALL' ? (selectEl.id === 'filter-company' ? 'ทุกบริษัท (All)' : selectEl.id === 'filter-bu' ? 'ทุกแผนก (All)' : selectEl.id === 'filter-aging' ? 'ทุกช่วง Aging' : 'ทุกสถานที่ (All)') : opt}</option>`).join('');
+            selectEl.value = options.includes(currentVal) ? currentVal : 'ALL';
+        }
+
+        function applyFilters() {
+            const cF = filterCompany.value, bF = filterBU.value, lF = filterLocation.value, aF = filterAging.value, sF = filterStatus.value, search = searchInput.value.toLowerCase();
+            filteredData = rawData.filter(d => (cF === 'ALL' || d.COMID === cF) && (bF === 'ALL' || d.SUBINVETENTORY_BU === bF) && (lF === 'ALL' || d.LOCATION_CODE === lF) && (aF === 'ALL' || d.AGING_BUCKETS === aF) && (sF === 'ALL' || d.LOT_STATUC_CODE === sF) && (!search || String(d.ITEM_CODE).toLowerCase().includes(search) || String(d.LOT_NUMBER).toLowerCase().includes(search) || String(d.ITEM_DESCRIPTION).toLowerCase().includes(search)));
+            filteredData.sort((a, b) => {
+                const sO = { 'EXPIRED': 0, 'WARNING': 1, 'GOOD': 2, 'N/A': 3 };
+                return (sO[a.LOT_STATUC_CODE] ?? 99) - (sO[b.LOT_STATUC_CODE] ?? 99) || b.AGING_BUCKETS.localeCompare(a.AGING_BUCKETS);
+            });
+            renderDashboard();
+        }
+
+        [filterCompany, filterBU, filterLocation, filterAging, filterStatus].forEach(el => el.addEventListener('change', applyFilters));
+        searchInput.addEventListener('input', applyFilters);
+
+        function renderDashboard() {
+            document.getElementById('filtered-count').innerText = filteredData.length.toLocaleString();
+            const firstWithRef = rawData.find(d => d.REF_DATE);
+            if (firstWithRef) { document.getElementById('update-date-container').classList.remove('hidden'); document.getElementById('ref-date-text').innerText = firstWithRef.REF_DATE; }
+            renderKPIs(); renderAgingChart(); renderBUChart(); renderLocationSummary(); renderDetailTable();
+            lucide.createIcons();
+        }
+
+        function renderKPIs() {
+            let qty = 0, val = 0, warning = 0; const locs = new Set();
+            filteredData.forEach(d => { qty += d.PRIMARY_TRANSACTION_QUANTITY; val += d.AMOUNT_VALUE; if (d.SUBINVENTORY_CODE) locs.add(d.SUBINVENTORY_CODE); if (d.LOT_STATUC_CODE === 'WARNING' || d.LOT_STATUC_CODE === 'EXPIRED') warning++; });
+            document.getElementById('kpi-container').innerHTML = `${createKCard('ปริมาณสต็อกรวม', qty.toLocaleString(), 'หน่วยตามระบบ', 'package', 'bg-blue-100', 'text-blue-600')}${createKCard('มูลค่ารวม', '฿' + val.toLocaleString(undefined, {minimumFractionDigits: 2}), 'บาท', 'dollar-sign', 'bg-emerald-100', 'text-emerald-600')}${createKCard('พื้นที่ที่ใช้งาน', locs.size.toLocaleString(), 'Subinventories', 'map-pin', 'bg-purple-100', 'text-purple-600')}${createKCard('สินค้าต้องระวัง/หมดอายุ', warning.toLocaleString(), 'รายการ', 'alert-triangle', 'bg-orange-100', 'text-orange-600', warning > 0)}`;
+        }
+
+        function createKCard(t, v, s, i, bg, txt, alt) { return `<div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden ${alt ? 'ring-1 ring-orange-400' : ''}"><div class="flex justify-between items-start"><div><p class="text-sm font-medium text-slate-500 mb-1">${t}</p><h4 class="text-2xl font-bold text-slate-800 mb-1">${v}</h4><p class="text-xs text-slate-400">${s}</p></div><div class="p-3 rounded-lg ${bg}"><i data-lucide="${i}" class="w-6 h-6 ${txt}"></i></div></div>${alt ? '<div class="absolute top-0 right-0 w-1.5 h-full bg-orange-500"></div>' : ''}</div>`; }
+
+        function renderAgingChart() {
+            const b = { '(1) 0-30 Day': 0, '(2) 31-60 Day': 0, '(3) 61-90 Day': 0, '(4) 91-120 Day': 0, '(5) 121-150 Day': 0, '(6) 151-180 Day': 0, '(7) 180 Day Up': 0 };
+            filteredData.forEach(d => { if (b[d.AGING_BUCKETS] !== undefined) b[d.AGING_BUCKETS] += d.PRIMARY_TRANSACTION_QUANTITY; });
+            const m = Math.max(...Object.values(b), 1);
+            document.getElementById('aging-chart-container').innerHTML = Object.entries(b).map(([n, v]) => `<div class="group cursor-pointer" onclick="window.filterByBucket('${n}')"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-slate-700">${n}</span><span class="text-slate-500">${v.toLocaleString()} qty</span></div><div class="w-full bg-slate-100 rounded-full h-2"><div class="chart-bar h-2 rounded-full ${n.includes('121') || n.includes('151') || n.includes('180') ? 'bg-red-500' : 'bg-blue-500'}" style="width: ${(v/m)*100}%"></div></div></div>`).join('');
+        }
+
+        window.filterByBucket = (bucketName) => { filterAging.value = bucketName; applyFilters(); };
+
+        function renderBUChart() {
+            const m = {}; filteredData.forEach(d => { const bu = d.SUBINVETENTORY_BU || 'Unknown'; m[bu] = (m[bu] || 0) + d.AMOUNT_VALUE; });
+            const s = Object.entries(m).sort((a,b) => b[1] - a[1]).slice(0, 5); const t = filteredData.reduce((sm, d) => sm + d.AMOUNT_VALUE, 0) || 1;
+            document.getElementById('bu-chart-container').innerHTML = s.map(([n, v]) => `<div class="relative"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-slate-700">${n}</span><span class="text-emerald-600 font-semibold">฿${v.toLocaleString(undefined, {maximumFractionDigits:0})}</span></div><div class="w-full bg-slate-100 rounded-full h-2.5"><div class="chart-bar h-2.5 rounded-full bg-emerald-400" style="width: ${(v/t)*100}%"></div></div><span class="text-xs text-slate-400 mt-1 block">${((v/t)*100).toFixed(1)}% ของมูลค่าทั้งหมด</span></div>`).join('');
+        }
+
+        function renderLocationSummary() {
+            const m = {}; filteredData.forEach(d => { const loc = d.LOCATION_CODE || 'Unknown'; if (!m[loc]) m[loc] = { q: 0, v: 0 }; m[loc].q += d.PRIMARY_TRANSACTION_QUANTITY; m[loc].v += d.AMOUNT_VALUE; });
+            document.getElementById('location-summary-body').innerHTML = Object.entries(m).sort((a,b) => b[1].v - a[1].v).map(([n, s]) => `<tr class="border-b last:border-0 hover:bg-slate-50"><td class="px-4 py-3 font-medium text-slate-700">${n}</td><td class="px-4 py-3 text-right text-blue-600 font-medium">${s.q.toLocaleString()}</td><td class="px-4 py-3 text-right text-emerald-600 font-medium">฿${s.v.toLocaleString(undefined, {minimumFractionDigits:2})}</td></tr>`).join('') || '<tr><td colspan="3" class="p-4 text-center text-slate-400">ไม่มีข้อมูล</td></tr>';
+        }
+
+        function renderDetailTable() {
+            const tbody = document.getElementById('stock-detail-body');
+            const limit = 100;
+            const displayData = filteredData.slice(0, limit);
+            tbody.innerHTML = displayData.map(d => {
+                let badge = 'bg-slate-100 text-slate-600';
+                if (d.LOT_STATUC_CODE === 'GOOD') badge = 'bg-emerald-100 text-emerald-700';
+                if (d.LOT_STATUC_CODE === 'WARNING') badge = 'bg-orange-100 text-orange-700';
+                if (d.LOT_STATUC_CODE === 'EXPIRED') badge = 'bg-red-100 text-red-700';
+                
+                const expCnt = parseInt(d.EXPDATE_COUNT || 0);
+                const cntColor = expCnt < 0 ? 'text-red-600 font-bold' : expCnt <= 30 ? 'text-orange-500' : 'text-slate-500';
+                
+                // Format Exp Date ด้วยฟังก์ชันที่แก้ไขปี 19xx และสลับวัน/เดือน
+                const formattedExpDate = formatDisplayDate(d.EXPIRATION_DATE);
+
+                return `
+                    <tr class="bg-white border-b hover:bg-slate-50 last:border-0">
+                        <td class="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">${d.ITEM_CODE || '-'}</td>
+                        <!-- คอลัมน์ Description อยู่ขวามือของ Item Code ทันที -->
+                        <td class="px-6 py-4 text-slate-600 truncate max-w-[200px]" title="${d.ITEM_DESCRIPTION}">${d.ITEM_DESCRIPTION || '-'}</td>
+                        <td class="px-6 py-4 text-slate-700 font-mono text-xs">${d.LOT_NUMBER || '-'}</td>
+                        <td class="px-6 py-4 text-slate-500 text-xs">${formattedExpDate}</td>
+                        <td class="px-6 py-4 text-right ${cntColor} text-xs font-mono">${expCnt.toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right font-medium text-slate-700">${d.PRIMARY_TRANSACTION_QUANTITY.toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right text-slate-700 font-mono">฿${d.AMOUNT_VALUE.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                        <td class="px-6 py-4"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badge}">${d.LOT_STATUC_CODE || 'N/A'}</span></td>
+                    </tr>
+                `;
+            }).join('') || '<tr><td colspan="8" class="p-8 text-center text-slate-400">ไม่พบข้อมูล</td></tr>';
+            document.getElementById('pagination-info').innerText = `กำลังแสดง ${displayData.length.toLocaleString()} รายการแรก จากทั้งหมด ${filteredData.length.toLocaleString()} รายการ`;
+        }
+    </script>
+</body>
+</html>
