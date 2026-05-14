@@ -3,167 +3,312 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warehouse Management Dashboard</title>
-    <!-- Tailwind CSS for Modern UI -->
+    <title>Warehouse Management Pro v3.2</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SheetJS for Excel/CSV Parsing -->
+    <!-- SheetJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; }
-        .chart-bar { transition: width 1s ease-in-out; }
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap');
         
-        /* Custom Dropdown Styling */
-        .dropdown-content {
+        :root {
+            --primary: #6366f1;
+            --accent: #818cf8;
+        }
+
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background-color: #f8fafc;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.04) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.04) 0px, transparent 50%);
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .modern-card {
+            background: white;
+            border-radius: 1.5rem;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.02), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .modern-card:hover {
+            box-shadow: 0 20px 40px -5px rgba(99, 102, 241, 0.12);
+            transform: translateY(-5px);
+            border-color: rgba(99, 102, 241, 0.25);
+        }
+
+        .kpi-glow {
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .chart-bar-grow { 
+            transition: width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1); 
+        }
+
+        /* Fixed Dropdown Layering */
+        .dropdown-menu {
             display: none;
             position: absolute;
             background-color: white;
-            min-width: 240px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
-            z-index: 50;
-            max-height: 300px;
+            min-width: 300px;
+            box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.2);
+            z-index: 1000; /* Ensure it stays on top of everything */
+            max-height: 480px;
             overflow-y: auto;
+            border-radius: 1.5rem;
+            margin-top: 0.75rem;
             border: 1px solid #e2e8f0;
-            border-radius: 0.75 margin-top: 0.5rem;
+            padding: 0.75rem;
+            animation: springIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
-        .dropdown-content.show { display: block; }
-        .dropdown-item:hover { background-color: #f8fafc; }
+        @keyframes springIn { 
+            from { opacity: 0; transform: translateY(10px) scale(0.95); } 
+            to { opacity: 1; transform: translateY(0) scale(1); } 
+        }
+        .dropdown-menu.show { display: block; }
+        
+        .active-chip {
+            display: inline-flex;
+            align-items: center;
+            background: #f5f3ff;
+            color: #4f46e5;
+            padding: 0.45rem 0.9rem;
+            border-radius: 0.85rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border: 1px solid #e0e7ff;
+            box-shadow: 0 2px 4px rgba(99, 102, 241, 0.05);
+            transition: all 0.3s;
+        }
+
+        .active-chip:hover {
+            background: #ede9fe;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(99, 102, 241, 0.1);
+        }
+
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+        .btn-ai-gradient {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            box-shadow: 0 8px 15px -3px rgba(99, 102, 241, 0.3);
+        }
+
+        .status-pill {
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 p-4 md:p-8">
+<body class="text-slate-700 antialiased pb-32">
 
-    <div class="max-w-7xl mx-auto">
-        <!-- Header -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
-                    <i data-lucide="package" class="w-8 h-8 text-blue-600"></i>
-                    Warehouse Management Dashboard
-                </h1>
-                <p class="text-slate-500 mt-1">วิเคราะห์ข้อมูล Stock Onhand แยกตาม Company, Location และ BU</p>
-                <div id="update-date-container" class="mt-2 hidden inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 text-sm font-medium rounded-full">
-                    <i data-lucide="clock" class="w-4 h-4"></i>
-                    <span>ข้อมูลอัปเดตล่าสุด: <span id="ref-date-text">-</span></span>
+    <!-- Navbar / Header -->
+    <nav class="glass-panel sticky top-0 z-[100] px-8 py-5 shadow-sm">
+        <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="flex items-center gap-6">
+                <div class="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-200 ring-4 ring-white">
+                    <i data-lucide="warehouse" class="w-7 h-7 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black text-slate-900 tracking-tight">Enterprise <span class="text-indigo-600">Inventory</span></h1>
+                    <div id="update-date-container" class="hidden flex items-center gap-2 mt-1.5">
+                        <div class="flex space-x-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        </div>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active: <span id="ref-date-text" class="text-slate-500">-</span></span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Upload Zone -->
-            <div id="drop-zone" class="relative flex items-center justify-center border-2 border-dashed border-slate-300 rounded-lg p-4 bg-white hover:bg-slate-50 cursor-pointer transition-colors w-full md:w-auto">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <i data-lucide="upload-cloud" class="w-5 h-5 text-slate-500"></i>
-                    <span id="upload-status" class="text-sm text-slate-600 font-medium">ลากไฟล์ CSV หรือ Excel วาง หรือ คลิกเพื่ออัปโหลด</span>
-                    <input type="file" id="file-input" accept=".csv, .xlsx, .xls" class="hidden">
-                </label>
+            <div class="flex items-center gap-5 w-full md:w-auto">
+                <div id="drop-zone" class="flex-1 md:flex-none flex items-center justify-center border-2 border-dashed border-indigo-100 rounded-3xl px-10 py-3 bg-indigo-50/10 hover:bg-white hover:border-indigo-400 cursor-pointer transition-all duration-300 group">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <i data-lucide="upload-cloud" class="w-6 h-6 text-indigo-500 group-hover:scale-125 transition-transform"></i>
+                        <span id="upload-status" class="text-sm font-black text-indigo-700 uppercase tracking-widest">Upload Data</span>
+                        <input type="file" id="file-input" accept=".csv, .xlsx, .xls" class="hidden">
+                    </label>
+                </div>
             </div>
         </div>
+    </nav>
 
-        <!-- Multi-select Filters Container -->
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-3 items-center mb-6">
-            <div class="flex items-center gap-2 text-slate-600 font-medium mr-2">
-                <i data-lucide="filter" class="w-4 h-4"></i> ฟิลเตอร์:
+    <main class="max-w-[1600px] mx-auto px-8 mt-12">
+        
+        <!-- Filter Engine Section (Raised z-index to stay on top) -->
+        <section class="mb-12 relative z-50">
+            <div class="modern-card p-10 bg-white/80 backdrop-blur-xl border-white shadow-2xl shadow-slate-200/40">
+                <div class="flex items-center justify-between mb-10">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-100">
+                            <i data-lucide="search-code" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-slate-800 tracking-tight">Intelligence Filters</h2>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Multi-selection parameter engine</p>
+                        </div>
+                    </div>
+                    <button onclick="clearAllFilters()" class="group text-[10px] font-black text-slate-400 hover:text-rose-500 transition-all uppercase tracking-[0.2em] flex items-center gap-2">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4 group-hover:rotate-[-45deg] transition-transform"></i> 
+                        Reset Parameters
+                    </button>
+                </div>
+                
+                <!-- Filter Selection Grid -->
+                <div id="filters-wrapper" class="flex flex-wrap gap-5 relative">
+                    <!-- Dropdowns will be generated here -->
+                </div>
+
+                <!-- Selected Filter Summary Area -->
+                <div id="active-filters-bar" class="mt-10 pt-8 border-t border-slate-100 hidden animate-in slide-in-from-top-4 duration-700">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="w-full mb-4 flex items-center gap-3">
+                            <div class="h-[1px] flex-1 bg-slate-100"></div>
+                            <span class="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Applied Criteria</span>
+                            <div class="h-[1px] flex-1 bg-slate-100"></div>
+                        </div>
+                        <div id="filter-chips-container" class="flex flex-wrap items-center gap-3"></div>
+                    </div>
+                </div>
             </div>
             
-            <!-- Multi-select Dropdowns -->
-            <div id="filters-wrapper" class="flex flex-wrap gap-3">
-                <!-- Dropdowns will be generated here -->
+            <div class="mt-5 px-6 flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <div class="flex items-center gap-3">
+                    <span id="pulse-indicator" class="flex h-3 w-3 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                    </span>
+                    Real-time Data Stream
+                </div>
+                <div class="bg-white px-4 py-1.5 rounded-full shadow-sm border border-slate-100">
+                    MATCHED SET: <span id="filtered-count" class="text-indigo-600">0</span> RECORDS
+                </div>
+            </div>
+        </section>
+
+        <!-- KPI Scoreboards (Lower z-index) -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16 relative z-10" id="kpi-container"></section>
+
+        <!-- Charts Grid (Lower z-index) -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16 relative z-10">
+            <!-- Aging Visual -->
+            <div class="modern-card p-10 group overflow-hidden">
+                <div class="flex justify-between items-center mb-12">
+                    <h3 class="text-xl font-black text-slate-800 flex items-center gap-4">
+                        <div class="p-3 bg-indigo-50 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500">
+                            <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
+                        </div>
+                        Inventory Aging Profile
+                    </h3>
+                </div>
+                <div id="aging-chart-container" class="space-y-9"></div>
             </div>
 
-            <div class="ml-auto text-xs text-slate-400">
-                พบข้อมูล <span id="filtered-count">0</span> รายการ
-            </div>
-        </div>
-
-        <!-- KPIs -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="kpi-container"></div>
-
-        <!-- Charts Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
-                    <i data-lucide="calendar" class="w-5 h-5 text-slate-400"></i> Inventory Aging (อายุสินค้า)
-                </h3>
-                <div id="aging-chart-container" class="space-y-4"></div>
+            <!-- Valuation Visual -->
+            <div class="modern-card p-10 group overflow-hidden">
+                <div class="flex justify-between items-center mb-12">
+                    <h3 class="text-xl font-black text-slate-800 flex items-center gap-4">
+                        <div class="p-3 bg-emerald-50 rounded-2xl group-hover:bg-emerald-600 group-hover:text-white transition-all duration-500">
+                            <i data-lucide="pie-chart" class="w-6 h-6"></i>
+                        </div>
+                        Top 5 Value by Business Unit
+                    </h3>
+                </div>
+                <div id="bu-chart-container" class="space-y-9"></div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
-                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-slate-400"></i> มูลค่าสินค้าแยกตาม BU (Top 5)
-                </h3>
-                <div id="bu-chart-container" class="space-y-5"></div>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 lg:col-span-2">
-                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-                    <i data-lucide="map-pin" class="w-5 h-5 text-slate-400"></i> ปริมาณและมูลค่าแยกตาม Location (LOCATION_CODE)
-                </h3>
-                <div class="overflow-x-auto">
+            <!-- Locator Summary -->
+            <div class="modern-card overflow-hidden lg:col-span-2 shadow-xl shadow-slate-200/20">
+                <div class="p-10 border-b border-slate-50 bg-slate-50/30 flex items-center gap-4">
+                    <div class="p-3 bg-indigo-100 text-indigo-700 rounded-2xl"><i data-lucide="map-pinned" class="w-6 h-6"></i></div>
+                    <h3 class="text-xl font-black text-slate-900 tracking-tight">Locator Efficiency Audit</h3>
+                </div>
+                <div class="overflow-x-auto custom-scroll">
                     <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                        <thead class="bg-white text-slate-400 font-black uppercase text-[10px] tracking-[0.25em] border-b border-slate-50">
                             <tr>
-                                <th class="px-4 py-3 text-left">Location Code</th>
-                                <th class="px-4 py-3 text-right">ปริมาณรวม (Qty)</th>
-                                <th class="px-4 py-3 text-right">มูลค่ารวม (Value)</th>
+                                <th class="px-10 py-7">Unique Locator Code</th>
+                                <th class="px-10 py-7 text-right">Aggregated Qty</th>
+                                <th class="px-10 py-7 text-right">Net Value Allocation (฿)</th>
                             </tr>
                         </thead>
-                        <tbody id="location-summary-body"></tbody>
+                        <tbody id="location-summary-body" class="divide-y divide-slate-50/50"></tbody>
                     </table>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- Detail Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h3 class="font-bold text-slate-800">รายการสินค้าในคลัง (Stock Details)</h3>
-                <div class="relative w-full md:w-auto">
-                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                    <input id="search-input" type="text" placeholder="ค้นหา ITEM CODE หรือ LOT..." class="pl-9 pr-4 py-1.5 text-sm border border-slate-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 w-full">
+        <!-- Main Inventory Audit Table -->
+        <section class="modern-card overflow-hidden shadow-2xl shadow-indigo-100/30 relative z-10 border-indigo-50">
+            <div class="p-10 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-10 bg-white">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-900 tracking-tighter">Inventory Audit Ledger</h3>
+                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] mt-3">High-precision verified records</p>
+                </div>
+                <div class="relative w-full xl:w-[520px]">
+                    <i data-lucide="search" class="w-6 h-6 text-slate-300 absolute left-6 top-1/2 -translate-y-1/2"></i>
+                    <input id="search-input" type="text" placeholder="Scan Item ID, Description, Batch or Lot..." class="pl-16 pr-8 py-6 text-sm border-2 border-slate-100 rounded-[2rem] focus:outline-none focus:ring-8 focus:ring-indigo-50/50 focus:border-indigo-500 w-full transition-all bg-slate-50 shadow-inner font-bold placeholder:text-slate-300">
                 </div>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto custom-scroll">
                 <table class="w-full text-sm text-left">
-                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                    <thead class="bg-slate-50/50 text-slate-400 font-black uppercase text-[9px] tracking-[0.25em] border-b border-slate-100">
                         <tr>
-                            <th class="px-6 py-3">Item Code</th>
-                            <th class="px-6 py-3">Description</th>
-                            <th class="px-6 py-3">Main Group</th>
-                            <th class="px-6 py-3">Lot Number</th>
-                            <th class="px-6 py-3">Exp Date</th>
-                            <th class="px-6 py-3 text-right">Exp Remaining (Days)</th>
-                            <th class="px-6 py-3 text-right">Qty</th>
-                            <th class="px-6 py-3 text-right">Value (฿)</th>
-                            <th class="px-6 py-3">Status</th>
+                            <th class="px-10 py-8">Product Identity</th>
+                            <th class="px-10 py-8">Description</th>
+                            <th class="px-10 py-8">Batch/Lot</th>
+                            <th class="px-6 py-8">Expiration</th>
+                            <th class="px-6 py-8 text-right">Rem. Days</th>
+                            <th class="px-10 py-8 text-right">Qty</th>
+                            <th class="px-10 py-8 text-right">Net Value</th>
+                            <th class="px-10 py-8 text-center">QC Status</th>
                         </tr>
                     </thead>
-                    <tbody id="stock-detail-body"></tbody>
+                    <tbody id="stock-detail-body" class="divide-y divide-slate-50"></tbody>
                 </table>
             </div>
-            <div id="pagination-info" class="px-6 py-3 bg-slate-50 text-center text-xs text-slate-400 border-t"></div>
-        </div>
-    </div>
+            <div id="pagination-info" class="px-10 py-8 bg-white text-center text-[11px] font-black text-indigo-300 uppercase tracking-[0.4em] border-t border-slate-50 italic"></div>
+        </section>
+    </main>
 
     <script>
         let rawData = [];
         let filteredData = [];
-        let filterOptions = {
-            COMID: [],
-            SUBINVETENTORY_BU: [],
-            LOCATION_CODE: [],
-            ITEM_SALE_MAIN_GROUP: [],
-            AGING_BUCKETS: [],
-            LOT_STATUC_CODE: ['GOOD', 'WARNING', 'EXPIRED']
-        };
-        let activeFilters = {
-            COMID: [],
-            SUBINVETENTORY_BU: [],
-            LOCATION_CODE: [],
-            ITEM_SALE_MAIN_GROUP: [],
-            AGING_BUCKETS: [],
-            LOT_STATUC_CODE: ['GOOD', 'WARNING', 'EXPIRED']
-        };
+        
+        // Configuration for interactive filters
+        const configKeys = [
+            { key: 'COMID', label: 'Company' },
+            { key: 'SUBINVETENTORY_BU', label: 'Business Unit' },
+            { key: 'LOCATION_CODE', label: 'Primary Loc' },
+            { key: 'ITEM_SALE_MAIN_GROUP', label: 'Product Grp' },
+            { key: 'SUBINVENTORY_STATUS', label: 'Inventory Status' }, // SUBINVENTORY_STATUS filter
+            { key: 'AGING_BUCKETS', label: 'Aging Profile' },
+            { key: 'LOT_STATUC_CODE', label: 'Grade/Quality' }
+        ];
 
+        let filterOptions = {};
+        let activeFilters = {};
+
+        // Initialize Lucide
         lucide.createIcons();
 
         const dropZone = document.getElementById('drop-zone');
@@ -172,26 +317,12 @@
         const searchInput = document.getElementById('search-input');
         const filtersWrapper = document.getElementById('filters-wrapper');
 
-        // File Handlers
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', handleFileUpload);
-        
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('bg-blue-50', 'border-blue-500'); });
-        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('bg-blue-50', 'border-blue-500'); });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('bg-blue-50', 'border-blue-500');
-            const file = e.dataTransfer.files[0];
-            if (file) processFile(file);
-        });
-
-        function handleFileUpload(e) {
-            const file = e.target.files[0];
-            if (file) processFile(file);
-        }
+        // Setup File Handling
+        if(dropZone) dropZone.onclick = () => fileInput.click();
+        if(fileInput) fileInput.onchange = (e) => { if(e.target.files[0]) processFile(e.target.files[0]); };
 
         function processFile(file) {
-            uploadStatus.innerText = "กำลังประมวลผล...";
+            uploadStatus.innerText = "Analyzing Assets...";
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
@@ -203,271 +334,375 @@
                     rawData = enrichData(jsonData);
                     initFilters();
                     applyFilters();
-                    uploadStatus.innerText = "อัปโหลดสำเร็จ: " + file.name;
+                    uploadStatus.innerText = "Data Synced";
                 } catch (err) {
-                    console.error(err);
-                    alert("เกิดข้อผิดพลาดในการอ่านไฟล์ค่ะ");
-                    uploadStatus.innerText = "ลากไฟล์มาวาง หรือ คลิกเพื่ออัปโหลด";
+                    console.error("Critical Parse Error:", err);
+                    alert("Analysis Failure: Information structure is non-standard.");
+                    uploadStatus.innerText = "Retry Import";
                 }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function parseCustomDate(dateStr) {
-            if (!dateStr) return null;
-            if (dateStr instanceof Date) return dateStr;
-            if (typeof dateStr === 'number') return new Date(Math.round((dateStr - 25569) * 86400 * 1000));
-            const safeStr = String(dateStr).trim();
-            if (!safeStr) return null;
-            const datePart = safeStr.split(/[\sT]/)[0];
-            const separator = datePart.includes('/') ? '/' : '-';
-            const parts = datePart.split(separator);
-            if (parts.length === 3) {
-                let p0 = parseInt(parts[0], 10), p1 = parseInt(parts[1], 10), p2 = parseInt(parts[2], 10);
-                let y, m, d;
-                if (p0 > 1000) { y = p0; m = p2 - 1; d = p1; } 
-                else { y = (p2 < 100) ? (p2 + 2000) : p2; m = p0 - 1; d = p1; }
-                return new Date(y, m, d);
-            }
-            return isNaN(new Date(datePart)) ? null : new Date(datePart);
-        }
-
-        function formatDisplayDate(dateVal) {
-            const d = parseCustomDate(dateVal);
-            if (!d) return dateVal || '-';
-            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-        }
-
-        function enrichData(dataList) {
-            return dataList.map(item => {
-                const newItem = { ...item };
-                if (!newItem.AGING_BUCKETS) newItem.AGING_BUCKETS = 'Unknown';
-                if (newItem.EXPDATE_COUNT !== undefined && newItem.EXPDATE_COUNT !== null && newItem.EXPDATE_COUNT !== '') {
-                    const expCount = parseInt(newItem.EXPDATE_COUNT, 10);
-                    if (!isNaN(expCount)) {
-                        if (expCount < 0) newItem.LOT_STATUC_CODE = 'EXPIRED';
-                        else if (expCount <= 30) newItem.LOT_STATUC_CODE = 'WARNING';
-                        else newItem.LOT_STATUC_CODE = 'GOOD';
+        function enrichData(list) {
+            return list.map(item => {
+                const d = { ...item };
+                // Unified status column mapping
+                d.SUBINVENTORY_STATUS = d.SUBINVENTORY_STATUS || d.SUBINVENTORY_STATUS_CODE || 'ACTIVE';
+                if (!d.AGING_BUCKETS) d.AGING_BUCKETS = 'UNPROCESSED';
+                
+                // Advanced QC Grade Logic based on count
+                if (d.EXPDATE_COUNT !== undefined && d.EXPDATE_COUNT !== null && d.EXPDATE_COUNT !== '') {
+                    const cnt = parseInt(d.EXPDATE_COUNT, 10);
+                    if (!isNaN(cnt)) {
+                        if (cnt < 0) d.LOT_STATUC_CODE = 'EXPIRED';
+                        else if (cnt <= 30) d.LOT_STATUC_CODE = 'WARNING';
+                        else d.LOT_STATUC_CODE = 'GOOD';
                     }
                 }
-                newItem.PRIMARY_TRANSACTION_QUANTITY = parseFloat(newItem.PRIMARY_TRANSACTION_QUANTITY || 0);
-                newItem.AMOUNT_VALUE = parseFloat(newItem.AMOUNT_VALUE || 0);
-                return newItem;
+                
+                d.PRIMARY_TRANSACTION_QUANTITY = parseFloat(d.PRIMARY_TRANSACTION_QUANTITY || 0);
+                d.AMOUNT_VALUE = parseFloat(d.AMOUNT_VALUE || 0);
+                return d;
             });
         }
 
         function initFilters() {
-            // Get unique values for each filter
-            filterOptions.COMID = [...new Set(rawData.map(d => d.COMID).filter(Boolean))].sort();
-            filterOptions.SUBINVETENTORY_BU = [...new Set(rawData.map(d => d.SUBINVETENTORY_BU).filter(Boolean))].sort();
-            filterOptions.LOCATION_CODE = [...new Set(rawData.map(d => d.LOCATION_CODE).filter(Boolean))].sort();
-            filterOptions.ITEM_SALE_MAIN_GROUP = [...new Set(rawData.map(d => d.ITEM_SALE_MAIN_GROUP).filter(Boolean))].sort();
-            filterOptions.AGING_BUCKETS = [
-                '(1) 0-30 Day', '(2) 31-60 Day', '(3) 61-90 Day', 
-                '(4) 91-120 Day', '(5) 121-150 Day', '(6) 151-180 Day', '(7) 180 Day Up'
-            ];
-            filterOptions.LOT_STATUC_CODE = ['GOOD', 'WARNING', 'EXPIRED'];
-
-            // By default, select all values
-            activeFilters = JSON.parse(JSON.stringify(filterOptions));
-            
-            renderFilterDropdowns();
+            configKeys.forEach(conf => {
+                const unique = [...new Set(rawData.map(d => d[conf.key]).filter(Boolean))].sort();
+                if (conf.key === 'AGING_BUCKETS') {
+                    filterOptions[conf.key] = ['(1) 0-30 Day', '(2) 31-60 Day', '(3) 61-90 Day', '(4) 91-120 Day', '(5) 121-150 Day', '(6) 151-180 Day', '(7) 180 Day Up'];
+                } else if (conf.key === 'LOT_STATUC_CODE') {
+                    filterOptions[conf.key] = ['GOOD', 'WARNING', 'EXPIRED'];
+                } else {
+                    filterOptions[conf.key] = unique;
+                }
+                activeFilters[conf.key] = [...filterOptions[conf.key]];
+            });
+            renderFilters();
         }
 
-        function renderFilterDropdowns() {
+        function renderFilters() {
+            if(!filtersWrapper) return;
             filtersWrapper.innerHTML = '';
-            const configs = [
-                { key: 'COMID', label: 'บริษัท' },
-                { key: 'SUBINVETENTORY_BU', label: 'แผนก (BU)' },
-                { key: 'LOCATION_CODE', label: 'สถานที่' },
-                { key: 'ITEM_SALE_MAIN_GROUP', label: 'กลุ่มสินค้า' },
-                { key: 'AGING_BUCKETS', label: 'ช่วง Aging' },
-                { key: 'LOT_STATUC_CODE', label: 'สถานะ' }
-            ];
+            configKeys.forEach(conf => {
+                const dd = document.createElement('div');
+                dd.className = 'relative inline-block';
+                dd.id = `dd-${conf.key}`;
+                
+                const isAll = activeFilters[conf.key].length === filterOptions[conf.key].length;
+                const labelText = isAll ? 'ALL SELECTED' : `${activeFilters[conf.key].length} ITEMS`;
 
-            configs.forEach(config => {
-                const dropdown = createMultiSelect(config.key, config.label);
-                filtersWrapper.appendChild(dropdown);
+                dd.innerHTML = `
+                    <button onclick="toggleDD('${conf.key}')" class="flex items-center gap-3 px-6 py-4 bg-slate-50 border border-slate-100 rounded-[1.5rem] text-[11px] font-black hover:border-indigo-400 hover:bg-white transition-all shadow-sm group">
+                        <span class="text-slate-400 group-hover:text-indigo-600 transition-colors uppercase tracking-widest font-extrabold">${conf.label}:</span>
+                        <span class="${isAll ? 'text-slate-500' : 'text-indigo-600'}">${labelText}</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-transform"></i>
+                    </button>
+                    <div id="content-${conf.key}" class="dropdown-menu">
+                        <div class="px-3 py-4 mb-3 border-b border-slate-50 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-10">
+                            <span class="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] pl-2">${conf.label} Selector</span>
+                            <div class="flex gap-5">
+                                <button onclick="toggleAll('${conf.key}', true)" class="text-[9px] font-black text-indigo-600 uppercase hover:scale-110 transition-transform">Select All</button>
+                                <button onclick="toggleAll('${conf.key}', false)" class="text-[9px] font-black text-slate-400 uppercase hover:scale-110 transition-transform">None</button>
+                            </div>
+                        </div>
+                        <div class="space-y-1 px-1 pb-2">
+                            ${filterOptions[conf.key].map(opt => `
+                                <label class="flex items-center px-4 py-3 hover:bg-indigo-50/50 rounded-2xl cursor-pointer transition-all group">
+                                    <input type="checkbox" class="rounded-lg border-slate-200"
+                                        ${activeFilters[conf.key].includes(opt) ? 'checked' : ''} 
+                                        onchange="itemChange('${conf.key}', '${opt}', this.checked)">
+                                    <span class="ml-4 text-[12px] text-slate-500 group-hover:text-indigo-700 font-bold truncate">${opt}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                filtersWrapper.appendChild(dd);
             });
             lucide.createIcons();
+            renderActiveChips();
         }
 
-        function createMultiSelect(key, label) {
-            const container = document.createElement('div');
-            container.className = 'relative inline-block text-left';
-            container.id = `dropdown-container-${key}`;
-
-            const isAllSelected = activeFilters[key].length === filterOptions[key].length;
-            const btnLabel = isAllSelected ? `ทั้งหมด` : `${activeFilters[key].length} รายการ`;
-
-            container.innerHTML = `
-                <button type="button" onclick="toggleDropdown('${key}')" class="inline-flex justify-between items-center w-full rounded-lg border border-slate-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]">
-                    <span>${label}: <span class="text-blue-600">${btnLabel}</span></span>
-                    <i data-lucide="chevron-down" class="ml-2 w-4 h-4"></i>
-                </button>
-                <div id="dropdown-content-${key}" class="dropdown-content">
-                    <div class="p-2 border-b border-slate-100 flex justify-between gap-2">
-                        <button onclick="selectToggleAll('${key}', true)" class="text-[10px] text-blue-600 font-bold hover:underline">เลือกทั้งหมด</button>
-                        <button onclick="selectToggleAll('${key}', false)" class="text-[10px] text-slate-400 font-bold hover:underline">ล้างทั้งหมด</button>
-                    </div>
-                    <div class="py-1">
-                        ${filterOptions[key].map(opt => `
-                            <label class="dropdown-item flex items-center px-4 py-2 text-sm text-slate-700 cursor-pointer">
-                                <input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 mr-3" 
-                                    ${activeFilters[key].includes(opt) ? 'checked' : ''} 
-                                    onchange="handleFilterChange('${key}', '${opt}', this.checked)">
-                                <span class="truncate">${opt}</span>
-                            </label>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            return container;
-        }
-
-        window.toggleDropdown = (key) => {
-            const allDropdowns = document.querySelectorAll('.dropdown-content');
-            allDropdowns.forEach(d => {
-                if (d.id !== `dropdown-content-${key}`) d.classList.remove('show');
+        function renderActiveChips() {
+            const container = document.getElementById('filter-chips-container');
+            const bar = document.getElementById('active-filters-bar');
+            const badge = document.getElementById('match-count-badge');
+            
+            if(!container || !bar) return;
+            container.innerHTML = '';
+            
+            let chipCount = 0;
+            configKeys.forEach(conf => {
+                if (activeFilters[conf.key].length < filterOptions[conf.key].length) {
+                    activeFilters[conf.key].forEach(val => {
+                        chipCount++;
+                        const chip = document.createElement('div');
+                        chip.className = 'active-chip group';
+                        chip.innerHTML = `
+                            <span class="opacity-40 uppercase tracking-[0.15em] mr-2 text-[9px] font-black">${conf.label}:</span> 
+                            <span>${val}</span>
+                            <button onclick="removeChip('${conf.key}', '${val}')" class="ml-3 opacity-30 group-hover:opacity-100 hover:text-rose-500 transition-all">
+                                <i data-lucide="x-circle" class="w-4 h-4"></i>
+                            </button>
+                        `;
+                        container.appendChild(chip);
+                    });
+                }
             });
-            document.getElementById(`dropdown-content-${key}`).classList.toggle('show');
-        };
 
-        window.handleFilterChange = (key, value, isChecked) => {
-            if (isChecked) {
-                if (!activeFilters[key].includes(value)) activeFilters[key].push(value);
+            if (chipCount > 0) {
+                bar.classList.remove('hidden');
+                lucide.createIcons();
             } else {
-                activeFilters[key] = activeFilters[key].filter(v => v !== value);
+                bar.classList.add('hidden');
             }
-            updateDropdownButtonLabel(key);
-            applyFilters();
-        };
-
-        window.selectToggleAll = (key, shouldSelectAll) => {
-            activeFilters[key] = shouldSelectAll ? [...filterOptions[key]] : [];
-            const container = document.getElementById(`dropdown-container-${key}`);
-            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = shouldSelectAll);
-            updateDropdownButtonLabel(key);
-            applyFilters();
-        };
-
-        function updateDropdownButtonLabel(key) {
-            const container = document.getElementById(`dropdown-container-${key}`);
-            const btn = container.querySelector('button span span');
-            const isAllSelected = activeFilters[key].length === filterOptions[key].length;
-            btn.innerText = isAllSelected ? `ทั้งหมด` : `${activeFilters[key].length} รายการ`;
         }
 
-        // Close dropdown when clicking outside
-        window.onclick = function(event) {
-            if (!event.target.closest('.relative')) {
-                document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+        window.toggleDD = (key) => {
+            const el = document.getElementById(`content-${key}`);
+            const isShown = el?.classList.contains('show');
+            document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('show'));
+            if (!isShown && el) el.classList.add('show');
+        };
+
+        window.itemChange = (key, val, checked) => {
+            if (checked) {
+                if (!activeFilters[key].includes(val)) activeFilters[key].push(val);
+            } else {
+                activeFilters[key] = activeFilters[key].filter(v => v !== val);
+            }
+            updateBtnLabel(key);
+            applyFilters();
+            renderActiveChips();
+        };
+
+        window.toggleAll = (key, all) => {
+            activeFilters[key] = all ? [...filterOptions[key]] : [];
+            document.querySelectorAll(`#content-${key} input`).forEach(i => i.checked = all);
+            updateBtnLabel(key);
+            applyFilters();
+            renderActiveChips();
+        };
+
+        window.removeChip = (key, val) => {
+            activeFilters[key] = activeFilters[key].filter(v => v !== val);
+            const input = Array.from(document.querySelectorAll(`#content-${key} input`)).find(i => i.parentNode.textContent.trim() === val);
+            if (input) input.checked = false;
+            updateBtnLabel(key);
+            applyFilters();
+            renderActiveChips();
+        };
+
+        window.clearAllFilters = () => {
+            configKeys.forEach(conf => {
+                activeFilters[conf.key] = [...filterOptions[conf.key]];
+                const dd = document.getElementById(`content-${conf.key}`);
+                if(dd) dd.querySelectorAll('input').forEach(i => i.checked = true);
+                updateBtnLabel(conf.key);
+            });
+            applyFilters();
+            renderActiveChips();
+        };
+
+        function updateBtnLabel(key) {
+            const btnContainer = document.querySelector(`#dd-${key} button`);
+            if(!btnContainer) return;
+            const span = btnContainer.querySelectorAll('span')[1];
+            if(!span) return;
+            
+            const isAll = activeFilters[key].length === filterOptions[key].length;
+            span.innerText = isAll ? 'ALL SELECTED' : `${activeFilters[key].length} ITEMS`;
+        }
+
+        window.onclick = (e) => {
+            if (!e.target.closest('.relative')) {
+                document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('show'));
             }
         };
 
         function applyFilters() {
-            const search = searchInput.value.toLowerCase();
-
+            const s = searchInput ? searchInput.value.toLowerCase() : "";
             filteredData = rawData.filter(d => 
                 activeFilters.COMID.includes(d.COMID) && 
                 activeFilters.SUBINVETENTORY_BU.includes(d.SUBINVETENTORY_BU) && 
                 activeFilters.LOCATION_CODE.includes(d.LOCATION_CODE) && 
                 activeFilters.ITEM_SALE_MAIN_GROUP.includes(d.ITEM_SALE_MAIN_GROUP) &&
+                activeFilters.SUBINVENTORY_STATUS.includes(d.SUBINVENTORY_STATUS) &&
                 activeFilters.AGING_BUCKETS.includes(d.AGING_BUCKETS) && 
                 activeFilters.LOT_STATUC_CODE.includes(d.LOT_STATUC_CODE) && 
-                (!search || String(d.ITEM_CODE).toLowerCase().includes(search) || 
-                           String(d.LOT_NUMBER).toLowerCase().includes(search) || 
-                           String(d.ITEM_DESCRIPTION).toLowerCase().includes(search))
+                (!s || String(d.ITEM_CODE).toLowerCase().includes(s) || 
+                       String(d.LOT_NUMBER).toLowerCase().includes(s) || 
+                       String(d.ITEM_DESCRIPTION).toLowerCase().includes(s))
             );
-
-            filteredData.sort((a, b) => {
-                const sO = { 'EXPIRED': 0, 'WARNING': 1, 'GOOD': 2, 'N/A': 3 };
-                return (sO[a.LOT_STATUC_CODE] ?? 99) - (sO[b.LOT_STATUC_CODE] ?? 99) || b.AGING_BUCKETS.localeCompare(a.AGING_BUCKETS);
-            });
             renderDashboard();
         }
 
-        searchInput.addEventListener('input', applyFilters);
+        if(searchInput) searchInput.oninput = applyFilters;
 
         function renderDashboard() {
-            document.getElementById('filtered-count').innerText = filteredData.length.toLocaleString();
-            const firstWithRef = rawData.find(d => d.REF_DATE);
-            if (firstWithRef) { 
-                document.getElementById('update-date-container').classList.remove('hidden'); 
-                document.getElementById('ref-date-text').innerText = firstWithRef.REF_DATE; 
+            const countEl = document.getElementById('filtered-count');
+            if (countEl) countEl.innerText = filteredData.length.toLocaleString();
+            
+            const ref = rawData.find(d => d.REF_DATE);
+            const refContainer = document.getElementById('update-date-container');
+            const refText = document.getElementById('ref-date-text');
+            
+            if (ref && refContainer && refText) { 
+                refContainer.classList.remove('hidden'); 
+                refText.innerText = ref.REF_DATE; 
             }
-            renderKPIs(); renderAgingChart(); renderBUChart(); renderLocationSummary(); renderDetailTable();
+            
+            renderKPIs();
+            renderAging();
+            renderBU();
+            renderLocSummary();
+            renderDetails();
             lucide.createIcons();
         }
 
         function renderKPIs() {
-            let qty = 0, val = 0, warning = 0; const locs = new Set();
-            filteredData.forEach(d => { 
-                qty += d.PRIMARY_TRANSACTION_QUANTITY; 
-                val += d.AMOUNT_VALUE; 
-                if (d.SUBINVENTORY_CODE) locs.add(d.SUBINVENTORY_CODE); 
-                if (d.LOT_STATUC_CODE === 'WARNING' || d.LOT_STATUC_CODE === 'EXPIRED') warning++; 
-            });
-            document.getElementById('kpi-container').innerHTML = `${createKCard('ปริมาณสต็อกรวม', qty.toLocaleString(), 'หน่วยตามระบบ', 'package', 'bg-blue-100', 'text-blue-600')}${createKCard('มูลค่ารวม', '฿' + val.toLocaleString(undefined, {minimumFractionDigits: 2}), 'บาท', 'dollar-sign', 'bg-emerald-100', 'text-emerald-600')}${createKCard('พื้นที่ที่ใช้งาน', locs.size.toLocaleString(), 'Subinventories', 'map-pin', 'bg-purple-100', 'text-purple-600')}${createKCard('สินค้าต้องระวัง/หมดอายุ', warning.toLocaleString(), 'รายการ', 'alert-triangle', 'bg-orange-100', 'text-orange-600', warning > 0)}`;
+            let q = 0, v = 0, w = 0; const set = new Set();
+            filteredData.forEach(d => { q += d.PRIMARY_TRANSACTION_QUANTITY; v += d.AMOUNT_VALUE; if (d.SUBINVENTORY_CODE) set.add(d.SUBINVENTORY_CODE); if (d.LOT_STATUC_CODE !== 'GOOD') w++; });
+            
+            const kpiContainer = document.getElementById('kpi-container');
+            if(!kpiContainer) return;
+            
+            kpiContainer.innerHTML = `
+                ${kCard('Gross Quantity', q.toLocaleString(), 'On-Hand Totals', 'box', 'from-indigo-600 to-blue-500')}
+                ${kCard('Assets Value', '฿' + v.toLocaleString(undefined, {minimumFractionDigits: 2}), 'Inventory Worth', 'banknote', 'from-emerald-600 to-teal-500')}
+                ${kCard('Active Locators', set.size.toLocaleString(), 'Occupied Areas', 'map-pin', 'from-violet-600 to-indigo-500')}
+                ${kCard('Risk Incidents', w.toLocaleString(), 'Attention Needed', 'shield-alert', w > 0 ? 'from-rose-600 to-pink-500' : 'from-slate-400 to-slate-500')}
+            `;
         }
 
-        function createKCard(t, v, s, i, bg, txt, alt) { return `<div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden ${alt ? 'ring-1 ring-orange-400' : ''}"><div class="flex justify-between items-start"><div><p class="text-sm font-medium text-slate-500 mb-1">${t}</p><h4 class="text-2xl font-bold text-slate-800 mb-1">${v}</h4><p class="text-xs text-slate-400">${s}</p></div><div class="p-3 rounded-lg ${bg}"><i data-lucide="${i}" class="w-6 h-6 ${txt}"></i></div></div>${alt ? '<div class="absolute top-0 right-0 w-1.5 h-full bg-orange-500"></div>' : ''}</div>`; }
+        function kCard(t, v, s, i, grad) {
+            return `
+                <div class="modern-card p-10 kpi-glow group">
+                    <div class="flex justify-between items-start mb-8">
+                        <div class="w-16 h-16 rounded-[1.5rem] bg-gradient-to-br ${grad} text-white flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:rotate-12 transition-all duration-700 ring-4 ring-white/50">
+                            <i data-lucide="${i}" class="w-8 h-8"></i>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-2">${t}</p>
+                            <h4 class="text-2xl font-black text-slate-900 tracking-tighter">${v}</h4>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex-1 bg-slate-50 h-2 rounded-full overflow-hidden shadow-inner">
+                            <div class="h-full bg-gradient-to-r ${grad} opacity-40 shadow-sm" style="width: 100%"></div>
+                        </div>
+                        <span class="text-[10px] font-black text-slate-400 whitespace-nowrap uppercase tracking-widest">${s}</span>
+                    </div>
+                </div>
+            `;
+        }
 
-        function renderAgingChart() {
+        function renderAging() {
             const b = { '(1) 0-30 Day': 0, '(2) 31-60 Day': 0, '(3) 61-90 Day': 0, '(4) 91-120 Day': 0, '(5) 121-150 Day': 0, '(6) 151-180 Day': 0, '(7) 180 Day Up': 0 };
             filteredData.forEach(d => { if (b[d.AGING_BUCKETS] !== undefined) b[d.AGING_BUCKETS] += d.PRIMARY_TRANSACTION_QUANTITY; });
-            const m = Math.max(...Object.values(b), 1);
-            document.getElementById('aging-chart-container').innerHTML = Object.entries(b).map(([n, v]) => `<div class="group cursor-pointer" onclick="window.filterByBucket('${n}')"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-slate-700">${n}</span><span class="text-slate-500">${v.toLocaleString()} qty</span></div><div class="w-full bg-slate-100 rounded-full h-2"><div class="chart-bar h-2 rounded-full ${n.includes('121') || n.includes('151') || n.includes('180') ? 'bg-red-500' : 'bg-blue-500'}" style="width: ${(v/m)*100}%"></div></div></div>`).join('');
+            const maxVal = Math.max(...Object.values(b), 1);
+            
+            const container = document.getElementById('aging-chart-container');
+            if(!container) return;
+            
+            container.innerHTML = Object.entries(b).map(([n, v]) => {
+                const p = (v/maxVal)*100;
+                const isWarning = n.includes('151') || n.includes('180');
+                const grad = isWarning ? 'from-rose-400 to-red-600' : 'from-indigo-400 to-blue-600';
+                return `
+                    <div class="group cursor-pointer" onclick="window.filterByBucket('${n}')">
+                        <div class="flex justify-between items-center text-[11px] mb-4">
+                            <span class="font-black text-slate-500 group-hover:text-indigo-600 transition-colors uppercase tracking-widest font-extrabold">${n}</span>
+                            <span class="font-black text-slate-900 bg-slate-50 px-4 py-1.5 rounded-xl border-2 border-white shadow-sm font-mono tracking-tighter">${v.toLocaleString()} QTY</span>
+                        </div>
+                        <div class="w-full bg-slate-50 h-4 rounded-3xl overflow-hidden shadow-inner border-2 border-white">
+                            <div class="chart-bar-grow h-full rounded-3xl bg-gradient-to-r ${grad} shadow-lg" style="width: ${p}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
-        window.filterByBucket = (bucketName) => { 
-            // When clicking aging bar, filter only that bucket
-            activeFilters.AGING_BUCKETS = [bucketName];
-            renderFilterDropdowns();
-            applyFilters(); 
-        };
+        window.filterByBucket = (n) => { activeFilters.AGING_BUCKETS = [n]; renderFilters(); applyFilters(); };
 
-        function renderBUChart() {
-            const m = {}; filteredData.forEach(d => { const bu = d.SUBINVETENTORY_BU || 'Unknown'; m[bu] = (m[bu] || 0) + d.AMOUNT_VALUE; });
-            const s = Object.entries(m).sort((a,b) => b[1] - a[1]).slice(0, 5); const t = filteredData.reduce((sm, d) => sm + d.AMOUNT_VALUE, 0) || 1;
-            document.getElementById('bu-chart-container').innerHTML = s.map(([n, v]) => `<div class="relative"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-slate-700">${n}</span><span class="text-emerald-600 font-semibold">฿${v.toLocaleString(undefined, {maximumFractionDigits:0})}</span></div><div class="w-full bg-slate-100 rounded-full h-2.5"><div class="chart-bar h-2.5 rounded-full bg-emerald-400" style="width: ${(v/t)*100}%"></div></div><span class="text-xs text-slate-400 mt-1 block">${((v/t)*100).toFixed(1)}% ของมูลค่าทั้งหมด</span></div>`).join('');
+        function renderBU() {
+            const map = {}; filteredData.forEach(d => { const bu = d.SUBINVETENTORY_BU || 'NOT_ASSIGNED'; map[bu] = (map[bu] || 0) + d.AMOUNT_VALUE; });
+            const sorted = Object.entries(map).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const totalVal = filteredData.reduce((sm, d) => sm + d.AMOUNT_VALUE, 0) || 1;
+            
+            const container = document.getElementById('bu-chart-container');
+            if(!container) return;
+            
+            container.innerHTML = sorted.map(([n, v]) => {
+                const p = (v/totalVal)*100;
+                return `
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center text-[10px]">
+                            <span class="font-black text-slate-700 uppercase tracking-[0.2em] font-extrabold">${n}</span>
+                            <span class="text-emerald-600 font-black font-mono tracking-tighter text-base">฿${v.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+                        </div>
+                        <div class="w-full bg-slate-50 h-5 rounded-3xl overflow-hidden shadow-inner border-2 border-white relative">
+                            <div class="chart-bar-grow h-full rounded-3xl bg-gradient-to-r from-emerald-400 to-teal-500 shadow-md" style="width: ${p}%"></div>
+                            <span class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white mix-blend-overlay uppercase tracking-widest">${p.toFixed(1)}% CONTRIBUTION</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
-        function renderLocationSummary() {
-            const m = {}; filteredData.forEach(d => { const loc = d.LOCATION_CODE || 'Unknown'; if (!m[loc]) m[loc] = { q: 0, v: 0 }; m[loc].q += d.PRIMARY_TRANSACTION_QUANTITY; m[loc].v += d.AMOUNT_VALUE; });
-            document.getElementById('location-summary-body').innerHTML = Object.entries(m).sort((a,b) => b[1].v - a[1].v).map(([n, s]) => `<tr class="border-b last:border-0 hover:bg-slate-50"><td class="px-4 py-3 font-medium text-slate-700">${n}</td><td class="px-4 py-3 text-right text-blue-600 font-medium">${s.q.toLocaleString()}</td><td class="px-4 py-3 text-right text-emerald-600 font-medium">฿${s.v.toLocaleString(undefined, {minimumFractionDigits:2})}</td></tr>`).join('') || '<tr><td colspan="3" class="p-4 text-center text-slate-400">ไม่มีข้อมูล</td></tr>';
+        function renderLocSummary() {
+            const map = {}; filteredData.forEach(d => { const loc = d.LOCATION_CODE || 'NA'; if (!map[loc]) map[loc] = { q: 0, v: 0 }; map[loc].q += d.PRIMARY_TRANSACTION_QUANTITY; map[loc].v += d.AMOUNT_VALUE; });
+            const body = document.getElementById('location-summary-body');
+            if(!body) return;
+            
+            body.innerHTML = Object.entries(map).sort((a,b) => b[1].v - a[1].v).map(([n, s]) => `
+                <tr class="hover:bg-indigo-50/50 transition-all duration-400 group">
+                    <td class="px-10 py-8 font-black text-slate-700 uppercase tracking-widest text-[12px] group-hover:text-indigo-600 font-extrabold">${n}</td>
+                    <td class="px-10 py-8 text-right text-slate-500 font-black font-mono tracking-tighter text-[13px]">${s.q.toLocaleString()}</td>
+                    <td class="px-10 py-8 text-right text-indigo-600 font-black font-mono tracking-tighter text-lg">฿${s.v.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="3" class="p-32 text-center text-slate-300 italic uppercase font-black tracking-[0.4em] opacity-50">Upload operational data to begin audit...</td></tr>';
         }
 
-        function renderDetailTable() {
+        function renderDetails() {
             const tbody = document.getElementById('stock-detail-body');
-            const limit = 100;
-            const displayData = filteredData.slice(0, limit);
-            tbody.innerHTML = displayData.map(d => {
-                let badge = 'bg-slate-100 text-slate-600';
-                if (d.LOT_STATUC_CODE === 'GOOD') badge = 'bg-emerald-100 text-emerald-700';
-                if (d.LOT_STATUC_CODE === 'WARNING') badge = 'bg-orange-100 text-orange-700';
-                if (d.LOT_STATUC_CODE === 'EXPIRED') badge = 'bg-red-100 text-red-700';
+            const info = document.getElementById('pagination-info');
+            if(!tbody) return;
+            
+            const displayList = filteredData.slice(0, 100);
+            
+            tbody.innerHTML = displayList.map(d => {
+                let badgeStyle = 'bg-slate-100 text-slate-500 border border-slate-200';
+                if (d.LOT_STATUC_CODE === 'GOOD') badgeStyle = 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+                if (d.LOT_STATUC_CODE === 'WARNING') badgeStyle = 'bg-amber-50 text-amber-700 border border-amber-100';
+                if (d.LOT_STATUC_CODE === 'EXPIRED') badgeStyle = 'bg-rose-50 text-rose-700 border border-rose-100';
                 
                 const expCnt = parseInt(d.EXPDATE_COUNT || 0);
-                const cntColor = expCnt < 0 ? 'text-red-600 font-bold' : expCnt <= 30 ? 'text-orange-500' : 'text-slate-500';
-                const formattedExpDate = formatDisplayDate(d.EXPIRATION_DATE);
+                const cntCol = expCnt < 0 ? 'text-rose-600 font-black' : expCnt <= 30 ? 'text-amber-500 font-black' : 'text-slate-400 font-bold';
+                
+                const dPart = d.EXPIRATION_DATE ? d.EXPIRATION_DATE.split(' ')[0] : '-';
+                const parts = dPart.split(/[-/]/);
+                const fmtDate = (parts.length === 3) ? (parts[0].length === 4 ? `${parts[2]}/${parts[1]}/${parts[0]}` : `${parts[0]}/${parts[1]}/${parts[2]}`) : dPart;
 
                 return `
-                    <tr class="bg-white border-b hover:bg-slate-50 last:border-0 text-[11px]">
-                        <td class="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">${d.ITEM_CODE || '-'}</td>
-                        <td class="px-4 py-3 text-slate-600 truncate max-w-[150px]" title="${d.ITEM_DESCRIPTION}">${d.ITEM_DESCRIPTION || '-'}</td>
-                        <td class="px-4 py-3 text-slate-500 italic">${d.ITEM_SALE_MAIN_GROUP || '-'}</td>
-                        <td class="px-4 py-3 text-slate-700 font-mono">${d.LOT_NUMBER || '-'}</td>
-                        <td class="px-4 py-3 text-slate-500">${formattedExpDate}</td>
-                        <td class="px-4 py-3 text-right ${cntColor} font-mono">${expCnt.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right font-medium text-slate-700">${d.PRIMARY_TRANSACTION_QUANTITY.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-right text-slate-700 font-mono">฿${d.AMOUNT_VALUE.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
-                        <td class="px-4 py-3"><span class="px-2 py-0.5 font-bold rounded-full ${badge}">${d.LOT_STATUC_CODE || 'N/A'}</span></td>
+                    <tr class="hover:bg-slate-50/50 transition-all group border-b border-slate-50/50">
+                        <td class="px-10 py-7 font-black text-slate-900 text-[11px] tracking-widest whitespace-nowrap group-hover:text-indigo-600 transition-colors uppercase">${d.ITEM_CODE || '-'}</td>
+                        <td class="px-10 py-7 text-slate-500 text-[12px] font-bold max-w-[320px] truncate" title="${d.ITEM_DESCRIPTION}">${d.ITEM_DESCRIPTION || '-'}</td>
+                        <td class="px-10 py-7 text-slate-400 font-mono text-[10px] font-black tracking-tighter uppercase">${d.LOT_NUMBER || '-'}</td>
+                        <td class="px-6 py-7 text-slate-500 text-[11px] font-black">${fmtDate}</td>
+                        <td class="px-6 py-7 text-right ${cntCol} text-[11px] font-mono tracking-tighter uppercase">${expCnt.toLocaleString()}</td>
+                        <td class="px-10 py-7 text-right font-black text-slate-700 text-[12px] tracking-tighter uppercase font-mono">${d.PRIMARY_TRANSACTION_QUANTITY.toLocaleString()}</td>
+                        <td class="px-10 py-7 text-right text-indigo-600 font-black text-[12px] font-mono tracking-tighter uppercase">฿${d.AMOUNT_VALUE.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+                        <td class="px-10 py-7 text-center">
+                            <span class="status-pill ${badgeStyle}">${d.LOT_STATUC_CODE || 'NA'}</span>
+                        </td>
                     </tr>
                 `;
-            }).join('') || '<tr><td colspan="9" class="p-8 text-center text-slate-400">ไม่พบข้อมูล</td></tr>';
-            document.getElementById('pagination-info').innerText = `กำลังแสดง ${displayData.length.toLocaleString()} รายการแรก จากทั้งหมด ${filteredData.length.toLocaleString()} รายการ`;
+            }).join('') || '<tr><td colspan="8" class="p-40 text-center text-slate-300 italic font-black uppercase tracking-[0.3em] opacity-40">No verified records match current selection</td></tr>';
+            
+            if(info) info.innerText = `Audit View: Showing 100 of ${filteredData.length.toLocaleString()} total verified records found in current batch`;
         }
     </script>
 </body>
