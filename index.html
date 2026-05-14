@@ -14,7 +14,22 @@
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
         .chart-bar { transition: width 1s ease-in-out; }
-        select { max-width: 180px; }
+        
+        /* Custom Dropdown Styling */
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: white;
+            min-width: 240px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.1);
+            z-index: 50;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75 margin-top: 0.5rem;
+        }
+        .dropdown-content.show { display: block; }
+        .dropdown-item:hover { background-color: #f8fafc; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 p-4 md:p-8">
@@ -44,33 +59,17 @@
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center mb-6">
-            <div class="flex items-center gap-2 text-slate-600 font-medium">
-                <i data-lucide="filter" class="w-4 h-4"></i> ตัวกรองข้อมูล:
+        <!-- Multi-select Filters Container -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-3 items-center mb-6">
+            <div class="flex items-center gap-2 text-slate-600 font-medium mr-2">
+                <i data-lucide="filter" class="w-4 h-4"></i> ฟิลเตอร์:
             </div>
-            <select id="filter-company" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="ALL">ทุกบริษัท (All)</option>
-            </select>
-            <select id="filter-bu" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="ALL">ทุกแผนก (All)</option>
-            </select>
-            <select id="filter-location" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="ALL">ทุกสถานที่ (All)</option>
-            </select>
-            <select id="filter-main-group" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="ALL">ทุกกลุ่มสินค้าหลัก</option>
-            </select>
-            <select id="filter-aging" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="ALL">ทุกช่วง Aging</option>
-            </select>
-            <select id="filter-status" class="border-slate-300 rounded-lg text-sm px-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="ALL">ทุกสถานะสินค้า</option>
-                <option value="EXPIRED">เฉพาะที่หมดอายุ</option>
-                <option value="WARNING">เฉพาะที่ใกล้หมดอายุ</option>
-                <option value="GOOD">ปกติ (Good)</option>
-            </select>
             
+            <!-- Multi-select Dropdowns -->
+            <div id="filters-wrapper" class="flex flex-wrap gap-3">
+                <!-- Dropdowns will be generated here -->
+            </div>
+
             <div class="ml-auto text-xs text-slate-400">
                 พบข้อมูล <span id="filtered-count">0</span> รายการ
             </div>
@@ -134,7 +133,6 @@
                             <th class="px-6 py-3">Exp Date</th>
                             <th class="px-6 py-3 text-right">Exp Remaining (Days)</th>
                             <th class="px-6 py-3 text-right">Qty</th>
-                            <th class="px-6 py-3">Unit</th>
                             <th class="px-6 py-3 text-right">Value (฿)</th>
                             <th class="px-6 py-3">Status</th>
                         </tr>
@@ -149,22 +147,35 @@
     <script>
         let rawData = [];
         let filteredData = [];
+        let filterOptions = {
+            COMID: [],
+            SUBINVETENTORY_BU: [],
+            LOCATION_CODE: [],
+            ITEM_SALE_MAIN_GROUP: [],
+            AGING_BUCKETS: [],
+            LOT_STATUC_CODE: ['GOOD', 'WARNING', 'EXPIRED']
+        };
+        let activeFilters = {
+            COMID: [],
+            SUBINVETENTORY_BU: [],
+            LOCATION_CODE: [],
+            ITEM_SALE_MAIN_GROUP: [],
+            AGING_BUCKETS: [],
+            LOT_STATUC_CODE: ['GOOD', 'WARNING', 'EXPIRED']
+        };
 
         lucide.createIcons();
 
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
         const uploadStatus = document.getElementById('upload-status');
-        const filterCompany = document.getElementById('filter-company');
-        const filterBU = document.getElementById('filter-bu');
-        const filterLocation = document.getElementById('filter-location');
-        const filterMainGroup = document.getElementById('filter-main-group');
-        const filterAging = document.getElementById('filter-aging');
-        const filterStatus = document.getElementById('filter-status');
         const searchInput = document.getElementById('search-input');
+        const filtersWrapper = document.getElementById('filters-wrapper');
 
+        // File Handlers
         dropZone.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', handleFileUpload);
+        
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('bg-blue-50', 'border-blue-500'); });
         dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('bg-blue-50', 'border-blue-500'); });
         dropZone.addEventListener('drop', (e) => {
@@ -188,8 +199,9 @@
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
+                    
                     rawData = enrichData(jsonData);
-                    updateFilterOptions();
+                    initFilters();
                     applyFilters();
                     uploadStatus.innerText = "อัปโหลดสำเร็จ: " + file.name;
                 } catch (err) {
@@ -204,51 +216,32 @@
         function parseCustomDate(dateStr) {
             if (!dateStr) return null;
             if (dateStr instanceof Date) return dateStr;
-            if (typeof dateStr === 'number') {
-                return new Date(Math.round((dateStr - 25569) * 86400 * 1000));
-            }
+            if (typeof dateStr === 'number') return new Date(Math.round((dateStr - 25569) * 86400 * 1000));
             const safeStr = String(dateStr).trim();
             if (!safeStr) return null;
-
             const datePart = safeStr.split(/[\sT]/)[0];
             const separator = datePart.includes('/') ? '/' : '-';
             const parts = datePart.split(separator);
-
             if (parts.length === 3) {
-                let p0 = parseInt(parts[0], 10);
-                let p1 = parseInt(parts[1], 10);
-                let p2 = parseInt(parts[2], 10);
+                let p0 = parseInt(parts[0], 10), p1 = parseInt(parts[1], 10), p2 = parseInt(parts[2], 10);
                 let y, m, d;
-
-                if (p0 > 1000) { 
-                    y = p0;
-                    m = p2 - 1;
-                    d = p1;
-                } else { 
-                    y = (p2 < 100) ? (p2 + 2000) : p2;
-                    m = p0 - 1;
-                    d = p1;
-                }
+                if (p0 > 1000) { y = p0; m = p2 - 1; d = p1; } 
+                else { y = (p2 < 100) ? (p2 + 2000) : p2; m = p0 - 1; d = p1; }
                 return new Date(y, m, d);
             }
-            const fb = new Date(datePart);
-            return isNaN(fb) ? null : fb;
+            return isNaN(new Date(datePart)) ? null : new Date(datePart);
         }
 
         function formatDisplayDate(dateVal) {
             const d = parseCustomDate(dateVal);
             if (!d) return dateVal || '-';
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            return `${day}/${month}/${year}`;
+            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
         }
 
         function enrichData(dataList) {
             return dataList.map(item => {
                 const newItem = { ...item };
                 if (!newItem.AGING_BUCKETS) newItem.AGING_BUCKETS = 'Unknown';
-                
                 if (newItem.EXPDATE_COUNT !== undefined && newItem.EXPDATE_COUNT !== null && newItem.EXPDATE_COUNT !== '') {
                     const expCount = parseInt(newItem.EXPDATE_COUNT, 10);
                     if (!isNaN(expCount)) {
@@ -263,36 +256,126 @@
             });
         }
 
-        function updateFilterOptions() {
-            populateSelect(filterCompany, ['ALL', ...new Set(rawData.map(d => d.COMID).filter(Boolean))]);
-            populateSelect(filterBU, ['ALL', ...new Set(rawData.map(d => d.SUBINVETENTORY_BU).filter(Boolean))]);
-            populateSelect(filterLocation, ['ALL', ...new Set(rawData.map(d => d.LOCATION_CODE).filter(Boolean))]);
-            populateSelect(filterMainGroup, ['ALL', ...new Set(rawData.map(d => d.ITEM_SALE_MAIN_GROUP).filter(Boolean))]);
-            populateSelect(filterAging, ['ALL', '(1) 0-30 Day', '(2) 31-60 Day', '(3) 61-90 Day', '(4) 91-120 Day', '(5) 121-150 Day', '(6) 151-180 Day', '(7) 180 Day Up']);
+        function initFilters() {
+            // Get unique values for each filter
+            filterOptions.COMID = [...new Set(rawData.map(d => d.COMID).filter(Boolean))].sort();
+            filterOptions.SUBINVETENTORY_BU = [...new Set(rawData.map(d => d.SUBINVETENTORY_BU).filter(Boolean))].sort();
+            filterOptions.LOCATION_CODE = [...new Set(rawData.map(d => d.LOCATION_CODE).filter(Boolean))].sort();
+            filterOptions.ITEM_SALE_MAIN_GROUP = [...new Set(rawData.map(d => d.ITEM_SALE_MAIN_GROUP).filter(Boolean))].sort();
+            filterOptions.AGING_BUCKETS = [
+                '(1) 0-30 Day', '(2) 31-60 Day', '(3) 61-90 Day', 
+                '(4) 91-120 Day', '(5) 121-150 Day', '(6) 151-180 Day', '(7) 180 Day Up'
+            ];
+            filterOptions.LOT_STATUC_CODE = ['GOOD', 'WARNING', 'EXPIRED'];
+
+            // By default, select all values
+            activeFilters = JSON.parse(JSON.stringify(filterOptions));
+            
+            renderFilterDropdowns();
         }
 
-        function populateSelect(selectEl, options) {
-            const currentVal = selectEl.value;
-            selectEl.innerHTML = options.map(opt => `<option value="${opt}">${opt === 'ALL' ? 
-                (selectEl.id === 'filter-company' ? 'ทุกบริษัท (All)' : 
-                 selectEl.id === 'filter-bu' ? 'ทุกแผนก (All)' : 
-                 selectEl.id === 'filter-aging' ? 'ทุกช่วง Aging' : 
-                 selectEl.id === 'filter-main-group' ? 'ทุกกลุ่มสินค้าหลัก' : 'ทุกสถานที่ (All)') : opt}</option>`).join('');
-            selectEl.value = options.includes(currentVal) ? currentVal : 'ALL';
+        function renderFilterDropdowns() {
+            filtersWrapper.innerHTML = '';
+            const configs = [
+                { key: 'COMID', label: 'บริษัท' },
+                { key: 'SUBINVETENTORY_BU', label: 'แผนก (BU)' },
+                { key: 'LOCATION_CODE', label: 'สถานที่' },
+                { key: 'ITEM_SALE_MAIN_GROUP', label: 'กลุ่มสินค้า' },
+                { key: 'AGING_BUCKETS', label: 'ช่วง Aging' },
+                { key: 'LOT_STATUC_CODE', label: 'สถานะ' }
+            ];
+
+            configs.forEach(config => {
+                const dropdown = createMultiSelect(config.key, config.label);
+                filtersWrapper.appendChild(dropdown);
+            });
+            lucide.createIcons();
         }
+
+        function createMultiSelect(key, label) {
+            const container = document.createElement('div');
+            container.className = 'relative inline-block text-left';
+            container.id = `dropdown-container-${key}`;
+
+            const isAllSelected = activeFilters[key].length === filterOptions[key].length;
+            const btnLabel = isAllSelected ? `ทั้งหมด` : `${activeFilters[key].length} รายการ`;
+
+            container.innerHTML = `
+                <button type="button" onclick="toggleDropdown('${key}')" class="inline-flex justify-between items-center w-full rounded-lg border border-slate-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]">
+                    <span>${label}: <span class="text-blue-600">${btnLabel}</span></span>
+                    <i data-lucide="chevron-down" class="ml-2 w-4 h-4"></i>
+                </button>
+                <div id="dropdown-content-${key}" class="dropdown-content">
+                    <div class="p-2 border-b border-slate-100 flex justify-between gap-2">
+                        <button onclick="selectToggleAll('${key}', true)" class="text-[10px] text-blue-600 font-bold hover:underline">เลือกทั้งหมด</button>
+                        <button onclick="selectToggleAll('${key}', false)" class="text-[10px] text-slate-400 font-bold hover:underline">ล้างทั้งหมด</button>
+                    </div>
+                    <div class="py-1">
+                        ${filterOptions[key].map(opt => `
+                            <label class="dropdown-item flex items-center px-4 py-2 text-sm text-slate-700 cursor-pointer">
+                                <input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 h-4 w-4 mr-3" 
+                                    ${activeFilters[key].includes(opt) ? 'checked' : ''} 
+                                    onchange="handleFilterChange('${key}', '${opt}', this.checked)">
+                                <span class="truncate">${opt}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            return container;
+        }
+
+        window.toggleDropdown = (key) => {
+            const allDropdowns = document.querySelectorAll('.dropdown-content');
+            allDropdowns.forEach(d => {
+                if (d.id !== `dropdown-content-${key}`) d.classList.remove('show');
+            });
+            document.getElementById(`dropdown-content-${key}`).classList.toggle('show');
+        };
+
+        window.handleFilterChange = (key, value, isChecked) => {
+            if (isChecked) {
+                if (!activeFilters[key].includes(value)) activeFilters[key].push(value);
+            } else {
+                activeFilters[key] = activeFilters[key].filter(v => v !== value);
+            }
+            updateDropdownButtonLabel(key);
+            applyFilters();
+        };
+
+        window.selectToggleAll = (key, shouldSelectAll) => {
+            activeFilters[key] = shouldSelectAll ? [...filterOptions[key]] : [];
+            const container = document.getElementById(`dropdown-container-${key}`);
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = shouldSelectAll);
+            updateDropdownButtonLabel(key);
+            applyFilters();
+        };
+
+        function updateDropdownButtonLabel(key) {
+            const container = document.getElementById(`dropdown-container-${key}`);
+            const btn = container.querySelector('button span span');
+            const isAllSelected = activeFilters[key].length === filterOptions[key].length;
+            btn.innerText = isAllSelected ? `ทั้งหมด` : `${activeFilters[key].length} รายการ`;
+        }
+
+        // Close dropdown when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.closest('.relative')) {
+                document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
+            }
+        };
 
         function applyFilters() {
-            const cF = filterCompany.value, bF = filterBU.value, lF = filterLocation.value, 
-                  mgF = filterMainGroup.value, aF = filterAging.value, sF = filterStatus.value, 
-                  search = searchInput.value.toLowerCase();
+            const search = searchInput.value.toLowerCase();
 
             filteredData = rawData.filter(d => 
-                (cF === 'ALL' || d.COMID === cF) && 
-                (bF === 'ALL' || d.SUBINVETENTORY_BU === bF) && 
-                (lF === 'ALL' || d.LOCATION_CODE === lF) && 
-                (mgF === 'ALL' || d.ITEM_SALE_MAIN_GROUP === mgF) &&
-                (aF === 'ALL' || d.AGING_BUCKETS === aF) && 
-                (sF === 'ALL' || d.LOT_STATUC_CODE === sF) && 
+                activeFilters.COMID.includes(d.COMID) && 
+                activeFilters.SUBINVETENTORY_BU.includes(d.SUBINVETENTORY_BU) && 
+                activeFilters.LOCATION_CODE.includes(d.LOCATION_CODE) && 
+                activeFilters.ITEM_SALE_MAIN_GROUP.includes(d.ITEM_SALE_MAIN_GROUP) &&
+                activeFilters.AGING_BUCKETS.includes(d.AGING_BUCKETS) && 
+                activeFilters.LOT_STATUC_CODE.includes(d.LOT_STATUC_CODE) && 
                 (!search || String(d.ITEM_CODE).toLowerCase().includes(search) || 
                            String(d.LOT_NUMBER).toLowerCase().includes(search) || 
                            String(d.ITEM_DESCRIPTION).toLowerCase().includes(search))
@@ -305,7 +388,6 @@
             renderDashboard();
         }
 
-        [filterCompany, filterBU, filterLocation, filterMainGroup, filterAging, filterStatus].forEach(el => el.addEventListener('change', applyFilters));
         searchInput.addEventListener('input', applyFilters);
 
         function renderDashboard() {
@@ -339,7 +421,12 @@
             document.getElementById('aging-chart-container').innerHTML = Object.entries(b).map(([n, v]) => `<div class="group cursor-pointer" onclick="window.filterByBucket('${n}')"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-slate-700">${n}</span><span class="text-slate-500">${v.toLocaleString()} qty</span></div><div class="w-full bg-slate-100 rounded-full h-2"><div class="chart-bar h-2 rounded-full ${n.includes('121') || n.includes('151') || n.includes('180') ? 'bg-red-500' : 'bg-blue-500'}" style="width: ${(v/m)*100}%"></div></div></div>`).join('');
         }
 
-        window.filterByBucket = (bucketName) => { filterAging.value = bucketName; applyFilters(); };
+        window.filterByBucket = (bucketName) => { 
+            // When clicking aging bar, filter only that bucket
+            activeFilters.AGING_BUCKETS = [bucketName];
+            renderFilterDropdowns();
+            applyFilters(); 
+        };
 
         function renderBUChart() {
             const m = {}; filteredData.forEach(d => { const bu = d.SUBINVETENTORY_BU || 'Unknown'; m[bu] = (m[bu] || 0) + d.AMOUNT_VALUE; });
@@ -375,12 +462,11 @@
                         <td class="px-4 py-3 text-slate-500">${formattedExpDate}</td>
                         <td class="px-4 py-3 text-right ${cntColor} font-mono">${expCnt.toLocaleString()}</td>
                         <td class="px-4 py-3 text-right font-medium text-slate-700">${d.PRIMARY_TRANSACTION_QUANTITY.toLocaleString()}</td>
-                        <td class="px-4 py-3 text-slate-500">${d.PRIMARY_UNIT_OF_MEASURE || '-'}</td>
                         <td class="px-4 py-3 text-right text-slate-700 font-mono">฿${d.AMOUNT_VALUE.toLocaleString(undefined, {minimumFractionDigits:2})}</td>
                         <td class="px-4 py-3"><span class="px-2 py-0.5 font-bold rounded-full ${badge}">${d.LOT_STATUC_CODE || 'N/A'}</span></td>
                     </tr>
                 `;
-            }).join('') || '<tr><td colspan="10" class="p-8 text-center text-slate-400">ไม่พบข้อมูล</td></tr>';
+            }).join('') || '<tr><td colspan="9" class="p-8 text-center text-slate-400">ไม่พบข้อมูล</td></tr>';
             document.getElementById('pagination-info').innerText = `กำลังแสดง ${displayData.length.toLocaleString()} รายการแรก จากทั้งหมด ${filteredData.length.toLocaleString()} รายการ`;
         }
     </script>
