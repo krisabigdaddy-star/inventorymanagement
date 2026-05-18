@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warehouse Management Pro v3.2</title>
+    <title>Warehouse Management Pro v3.6</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- SheetJS -->
@@ -64,7 +64,7 @@
             background-color: white;
             min-width: 300px;
             box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.2);
-            z-index: 1000; /* Ensure it stays on top of everything */
+            z-index: 1000; 
             max-height: 480px;
             overflow-y: auto;
             border-radius: 1.5rem;
@@ -99,15 +99,10 @@
             box-shadow: 0 4px 6px rgba(99, 102, 241, 0.1);
         }
 
-        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
-
-        .btn-ai-gradient {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            box-shadow: 0 8px 15px -3px rgba(99, 102, 241, 0.3);
-        }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         .status-pill {
             font-weight: 800;
@@ -154,7 +149,7 @@
 
     <main class="max-w-[1600px] mx-auto px-8 mt-12">
         
-        <!-- Filter Engine Section (Raised z-index to stay on top) -->
+        <!-- Filter Engine Section -->
         <section class="mb-12 relative z-50">
             <div class="modern-card p-10 bg-white/80 backdrop-blur-xl border-white shadow-2xl shadow-slate-200/40">
                 <div class="flex items-center justify-between mb-10">
@@ -205,10 +200,45 @@
             </div>
         </section>
 
-        <!-- KPI Scoreboards (Lower z-index) -->
+        <!-- KPI Scoreboards -->
         <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16 relative z-10" id="kpi-container"></section>
 
-        <!-- Charts Grid (Lower z-index) -->
+        <!-- Warehouse Heatmap Section -->
+        <section class="modern-card overflow-hidden shadow-2xl shadow-indigo-100/30 relative z-10 border-indigo-50 mb-16">
+            <div class="p-10 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><i data-lucide="grid-3x3" class="w-6 h-6"></i></div>
+                    <div>
+                        <h3 class="text-2xl font-black text-slate-900 tracking-tighter">Area Heatmap (Auto-Relative)</h3>
+                        <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em] mt-1.5">Visualizing storage density grouped by unit of measure</p>
+                    </div>
+                </div>
+                <!-- Interactive Heatmap Filtering Controls -->
+                <div class="flex flex-col sm:flex-row items-end sm:items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location:</span>
+                        <select id="heatmap-loccode-select" onchange="updateHeatmapAreaSelect()" class="border-2 border-indigo-100 bg-indigo-50/30 rounded-xl px-4 py-2.5 text-xs font-black text-indigo-700 outline-none focus:border-indigo-400 focus:bg-white transition-colors cursor-pointer appearance-none pr-8 relative min-w-[120px]">
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Area:</span>
+                        <select id="heatmap-location-select" onchange="updateHeatmapRowSelect()" class="border-2 border-indigo-100 bg-indigo-50/30 rounded-xl px-4 py-2.5 text-xs font-black text-indigo-700 outline-none focus:border-indigo-400 focus:bg-white transition-colors cursor-pointer appearance-none pr-8 relative min-w-[120px]">
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Row:</span>
+                        <select id="heatmap-row-select" onchange="renderHeatmap()" class="border-2 border-indigo-100 bg-indigo-50/30 rounded-xl px-4 py-2.5 text-xs font-black text-indigo-700 outline-none focus:border-indigo-400 focus:bg-white transition-colors cursor-pointer appearance-none pr-8 relative min-w-[100px]">
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-10 bg-slate-50/50 overflow-x-auto custom-scroll" id="heatmap-container">
+                <div class="text-center py-20 text-slate-400 font-bold uppercase tracking-widest italic">Upload data to view heatmap</div>
+            </div>
+        </section>
+
+        <!-- Charts Grid -->
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16 relative z-10">
             <!-- Aging Visual -->
             <div class="modern-card p-10 group overflow-hidden">
@@ -239,14 +269,14 @@
             <!-- Locator Summary -->
             <div class="modern-card overflow-hidden lg:col-span-2 shadow-xl shadow-slate-200/20">
                 <div class="p-10 border-b border-slate-50 bg-slate-50/30 flex items-center gap-4">
-                    <div class="p-3 bg-indigo-100 text-indigo-700 rounded-2xl"><i data-lucide="map-pinned" class="w-6 h-6"></i></div>
-                    <h3 class="text-xl font-black text-slate-900 tracking-tight">Locator Efficiency Audit</h3>
+                    <div class="p-3 bg-indigo-100 text-indigo-700 rounded-2xl"><i data-lucide="layout-list" class="w-6 h-6"></i></div>
+                    <h3 class="text-xl font-black text-slate-900 tracking-tight">Area Performance Audit</h3>
                 </div>
                 <div class="overflow-x-auto custom-scroll">
                     <table class="w-full text-sm text-left">
                         <thead class="bg-white text-slate-400 font-black uppercase text-[10px] tracking-[0.25em] border-b border-slate-50">
                             <tr>
-                                <th class="px-10 py-7">Unique Locator Code</th>
+                                <th class="px-10 py-7">Storage Area (Zone)</th>
                                 <th class="px-10 py-7 text-right">Aggregated Qty</th>
                                 <th class="px-10 py-7 text-right">Net Value Allocation (฿)</th>
                             </tr>
@@ -294,13 +324,13 @@
         let rawData = [];
         let filteredData = [];
         
-        // Configuration for interactive filters
+        // Master Config
         const configKeys = [
             { key: 'COMID', label: 'Company' },
             { key: 'SUBINVETENTORY_BU', label: 'Business Unit' },
-            { key: 'LOCATION_CODE', label: 'Primary Loc' },
+            { key: 'LOCATOR_AREA', label: 'Storage Area' },
             { key: 'ITEM_SALE_MAIN_GROUP', label: 'Product Grp' },
-            { key: 'SUBINVENTORY_STATUS', label: 'Inventory Status' }, // SUBINVENTORY_STATUS filter
+            { key: 'SUBINVENTORY_STATUS', label: 'Inventory Status' },
             { key: 'AGING_BUCKETS', label: 'Aging Profile' },
             { key: 'LOT_STATUC_CODE', label: 'Grade/Quality' }
         ];
@@ -308,7 +338,6 @@
         let filterOptions = {};
         let activeFilters = {};
 
-        // Initialize Lucide
         lucide.createIcons();
 
         const dropZone = document.getElementById('drop-zone');
@@ -317,7 +346,6 @@
         const searchInput = document.getElementById('search-input');
         const filtersWrapper = document.getElementById('filters-wrapper');
 
-        // Setup File Handling
         if(dropZone) dropZone.onclick = () => fileInput.click();
         if(fileInput) fileInput.onchange = (e) => { if(e.target.files[0]) processFile(e.target.files[0]); };
 
@@ -336,8 +364,8 @@
                     applyFilters();
                     uploadStatus.innerText = "Data Synced";
                 } catch (err) {
-                    console.error("Critical Parse Error:", err);
-                    alert("Analysis Failure: Information structure is non-standard.");
+                    console.error("Parse Error:", err);
+                    alert("Analysis Failure: Please check file format.");
                     uploadStatus.innerText = "Retry Import";
                 }
             };
@@ -347,11 +375,10 @@
         function enrichData(list) {
             return list.map(item => {
                 const d = { ...item };
-                // Unified status column mapping
                 d.SUBINVENTORY_STATUS = d.SUBINVENTORY_STATUS || d.SUBINVENTORY_STATUS_CODE || 'ACTIVE';
+                d.LOCATOR_AREA = d.LOCATOR_AREA || 'NOT_ASSIGNED';
                 if (!d.AGING_BUCKETS) d.AGING_BUCKETS = 'UNPROCESSED';
                 
-                // Advanced QC Grade Logic based on count
                 if (d.EXPDATE_COUNT !== undefined && d.EXPDATE_COUNT !== null && d.EXPDATE_COUNT !== '') {
                     const cnt = parseInt(d.EXPDATE_COUNT, 10);
                     if (!isNaN(cnt)) {
@@ -401,7 +428,7 @@
                     </button>
                     <div id="content-${conf.key}" class="dropdown-menu">
                         <div class="px-3 py-4 mb-3 border-b border-slate-50 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-md z-10">
-                            <span class="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] pl-2">${conf.label} Selector</span>
+                            <span class="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] pl-2">${conf.label}</span>
                             <div class="flex gap-5">
                                 <button onclick="toggleAll('${conf.key}', true)" class="text-[9px] font-black text-indigo-600 uppercase hover:scale-110 transition-transform">Select All</button>
                                 <button onclick="toggleAll('${conf.key}', false)" class="text-[9px] font-black text-slate-400 uppercase hover:scale-110 transition-transform">None</button>
@@ -428,7 +455,6 @@
         function renderActiveChips() {
             const container = document.getElementById('filter-chips-container');
             const bar = document.getElementById('active-filters-bar');
-            const badge = document.getElementById('match-count-badge');
             
             if(!container || !bar) return;
             container.innerHTML = '';
@@ -443,7 +469,7 @@
                         chip.innerHTML = `
                             <span class="opacity-40 uppercase tracking-[0.15em] mr-2 text-[9px] font-black">${conf.label}:</span> 
                             <span>${val}</span>
-                            <button onclick="removeChip('${conf.key}', '${val}')" class="ml-3 opacity-30 group-hover:opacity-100 hover:text-rose-500 transition-all">
+                            <button onclick="removeChip('${conf.key}', '${val}')" class="ml-3 opacity-30 group-hover:opacity-100 hover:text-red-500 transition-all">
                                 <i data-lucide="x-circle" class="w-4 h-4"></i>
                             </button>
                         `;
@@ -527,7 +553,7 @@
             filteredData = rawData.filter(d => 
                 activeFilters.COMID.includes(d.COMID) && 
                 activeFilters.SUBINVETENTORY_BU.includes(d.SUBINVETENTORY_BU) && 
-                activeFilters.LOCATION_CODE.includes(d.LOCATION_CODE) && 
+                activeFilters.LOCATOR_AREA.includes(d.LOCATOR_AREA) && 
                 activeFilters.ITEM_SALE_MAIN_GROUP.includes(d.ITEM_SALE_MAIN_GROUP) &&
                 activeFilters.SUBINVENTORY_STATUS.includes(d.SUBINVENTORY_STATUS) &&
                 activeFilters.AGING_BUCKETS.includes(d.AGING_BUCKETS) && 
@@ -555,16 +581,18 @@
             }
             
             renderKPIs();
+            renderHeatmapSelect();
+            updateHeatmapAreaSelect();
             renderAging();
             renderBU();
-            renderLocSummary();
+            renderAreaSummary(); 
             renderDetails();
             lucide.createIcons();
         }
 
         function renderKPIs() {
             let q = 0, v = 0, w = 0; const set = new Set();
-            filteredData.forEach(d => { q += d.PRIMARY_TRANSACTION_QUANTITY; v += d.AMOUNT_VALUE; if (d.SUBINVENTORY_CODE) set.add(d.SUBINVENTORY_CODE); if (d.LOT_STATUC_CODE !== 'GOOD') w++; });
+            filteredData.forEach(d => { q += d.PRIMARY_TRANSACTION_QUANTITY; v += d.AMOUNT_VALUE; if (d.LOCATOR_AREA) set.add(d.LOCATOR_AREA); if (d.LOT_STATUC_CODE !== 'GOOD') w++; });
             
             const kpiContainer = document.getElementById('kpi-container');
             if(!kpiContainer) return;
@@ -572,7 +600,7 @@
             kpiContainer.innerHTML = `
                 ${kCard('Gross Quantity', q.toLocaleString(), 'On-Hand Totals', 'box', 'from-indigo-600 to-blue-500')}
                 ${kCard('Assets Value', '฿' + v.toLocaleString(undefined, {minimumFractionDigits: 2}), 'Inventory Worth', 'banknote', 'from-emerald-600 to-teal-500')}
-                ${kCard('Active Locators', set.size.toLocaleString(), 'Occupied Areas', 'map-pin', 'from-violet-600 to-indigo-500')}
+                ${kCard('Active Areas', set.size.toLocaleString(), 'Zones Occupied', 'map', 'from-violet-600 to-indigo-500')}
                 ${kCard('Risk Incidents', w.toLocaleString(), 'Attention Needed', 'shield-alert', w > 0 ? 'from-rose-600 to-pink-500' : 'from-slate-400 to-slate-500')}
             `;
         }
@@ -598,6 +626,232 @@
                 </div>
             `;
         }
+
+        // ================= HEATMAP LOGIC =================
+        function renderHeatmapSelect() {
+            const locSelect = document.getElementById('heatmap-loccode-select');
+            if(!locSelect) return;
+            
+            const validLocs = [...new Set(filteredData.filter(d => d.LOCATION_CODE && d.LOCATOR_AREA && d.LOCATOR_ROW && d.LOCATOR_COLUMN).map(d => d.LOCATION_CODE))].sort();
+            const currentVal = locSelect.value;
+
+            if (validLocs.length === 0) {
+                locSelect.innerHTML = `<option value="">No Location</option>`;
+                locSelect.disabled = true;
+            } else {
+                locSelect.disabled = false;
+                locSelect.innerHTML = validLocs.map(l => `<option value="${l}">${l}</option>`).join('');
+                if (validLocs.includes(currentVal)) {
+                    locSelect.value = currentVal;
+                }
+            }
+        }
+
+        window.updateHeatmapAreaSelect = function() {
+            const locSelect = document.getElementById('heatmap-loccode-select');
+            const areaSelect = document.getElementById('heatmap-location-select');
+            if(!locSelect || !areaSelect) return;
+
+            const activeLoc = locSelect.value;
+            const currentArea = areaSelect.value;
+
+            if (!activeLoc) {
+                areaSelect.innerHTML = `<option value="">Select Area</option>`;
+                areaSelect.disabled = true;
+            } else {
+                const validAreas = [...new Set(filteredData.filter(d => d.LOCATION_CODE === activeLoc && d.LOCATOR_AREA && d.LOCATOR_ROW && d.LOCATOR_COLUMN).map(d => d.LOCATOR_AREA))].sort();
+                
+                areaSelect.disabled = false;
+                areaSelect.innerHTML = validAreas.map(a => `<option value="${a}">Zone: ${a}</option>`).join('');
+                if (validAreas.includes(currentArea)) {
+                    areaSelect.value = currentArea;
+                }
+            }
+            updateHeatmapRowSelect(); 
+        }
+
+        window.updateHeatmapRowSelect = function() {
+            const locSelect = document.getElementById('heatmap-loccode-select');
+            const areaSelect = document.getElementById('heatmap-location-select');
+            const rowSelect = document.getElementById('heatmap-row-select');
+            if(!locSelect || !areaSelect || !rowSelect) return;
+
+            const activeLoc = locSelect.value;
+            const activeArea = areaSelect.value;
+            const currentRow = rowSelect.value;
+
+            if (!activeArea || !activeLoc) {
+                rowSelect.innerHTML = `<option value="ALL">ALL ROWS</option>`;
+                rowSelect.disabled = true;
+            } else {
+                const validRows = [...new Set(filteredData.filter(d => d.LOCATION_CODE === activeLoc && d.LOCATOR_AREA === activeArea && d.LOCATOR_ROW && d.LOCATOR_COLUMN).map(d => String(d.LOCATOR_ROW).trim()))].sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+                
+                rowSelect.disabled = false;
+                let html = `<option value="ALL">ALL ROWS</option>`;
+                html += validRows.map(r => `<option value="${r}">Row: ${r}</option>`).join('');
+                rowSelect.innerHTML = html;
+                
+                if (currentRow === 'ALL' || validRows.includes(currentRow)) {
+                    rowSelect.value = currentRow;
+                } else {
+                    rowSelect.value = 'ALL';
+                }
+            }
+            renderHeatmap(); 
+        }
+
+        window.renderHeatmap = function() {
+            const container = document.getElementById('heatmap-container');
+            const locSelect = document.getElementById('heatmap-loccode-select');
+            const areaSelect = document.getElementById('heatmap-location-select');
+            const rowSelect = document.getElementById('heatmap-row-select');
+            if(!container || !locSelect || !areaSelect || !rowSelect) return;
+
+            const activeLoc = locSelect.value;
+            const activeArea = areaSelect.value;
+            const activeRow = rowSelect.value;
+
+            if (!activeLoc || !activeArea) {
+                container.innerHTML = `<div class="text-center py-20 text-slate-300 font-black uppercase tracking-widest italic">No Area Coordinates Found</div>`;
+                return;
+            }
+
+            const gridData = filteredData.filter(d => 
+                d.LOCATION_CODE === activeLoc &&
+                d.LOCATOR_AREA === activeArea && 
+                d.LOCATOR_ROW && 
+                d.LOCATOR_COLUMN &&
+                (activeRow === 'ALL' || String(d.LOCATOR_ROW).trim() === activeRow)
+            );
+
+            if (gridData.length === 0) {
+                container.innerHTML = `<div class="text-center py-20 text-slate-300 font-black uppercase tracking-widest italic">Empty Grid for ${activeArea}${activeRow !== 'ALL' ? ' (Row ' + activeRow + ')' : ''}</div>`;
+                return;
+            }
+
+            const gridMap = {};
+            let maxQty = 0;
+            const rowsSet = new Set();
+            const colsSet = new Set();
+
+            gridData.forEach(d => {
+                const r = String(d.LOCATOR_ROW).trim();
+                const c = String(d.LOCATOR_COLUMN).trim();
+                const q = parseFloat(d.PRIMARY_TRANSACTION_QUANTITY || 0);
+                // Get UOM, fallback to 'UNITS' if column is missing or empty
+                const uom = String(d.PRIMARY_UOM_CODE || d.UOM || 'UNITS').toUpperCase(); 
+
+                rowsSet.add(r);
+                colsSet.add(c);
+
+                if(!gridMap[r]) gridMap[r] = {};
+                // Modify data structure to hold total AND grouping by UOM
+                if(!gridMap[r][c]) gridMap[r][c] = { total: 0, uoms: {} };
+
+                gridMap[r][c].total += q;
+                
+                if(!gridMap[r][c].uoms[uom]) gridMap[r][c].uoms[uom] = 0;
+                gridMap[r][c].uoms[uom] += q;
+
+                if(gridMap[r][c].total > maxQty) maxQty = gridMap[r][c].total;
+            });
+
+            if (maxQty <= 0) maxQty = 1;
+
+            const sortedRows = Array.from(rowsSet).sort((a,b) => b.localeCompare(a, undefined, {numeric: true}));
+            const sortedCols = Array.from(colsSet).sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+
+            let html = `<div class="inline-block min-w-full bg-white p-8 rounded-3xl shadow-sm border border-slate-100">`;
+            html += `<table class="border-separate border-spacing-2 mx-auto">`;
+
+            html += `<tr><td class="p-2"></td>`;
+            sortedCols.forEach(c => {
+                html += `<td class="p-2 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">C${c}</td>`;
+            });
+            html += `</tr>`;
+
+            sortedRows.forEach(r => {
+                html += `<tr>`;
+                html += `<td class="p-2 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest pr-6 align-middle border-r border-slate-100">R${r}</td>`;
+
+                sortedCols.forEach(c => {
+                    const cellData = gridMap[r]?.[c] || { total: 0, uoms: {} };
+                    const qty = cellData.total;
+                    const pct = (qty / maxQty) * 100;
+
+                    let bgClass = 'bg-slate-50 border-slate-100'; 
+                    let textClass = 'text-slate-300';
+                    let fillHeight = '0%';
+                    let fillColor = 'bg-slate-200';
+
+                    if (pct > 0 && pct <= 39) { bgClass = 'bg-emerald-50 border-emerald-200'; textClass = 'text-emerald-700'; fillColor = 'bg-emerald-400'; fillHeight = pct+'%'; }
+                    else if (pct >= 40 && pct <= 79) { bgClass = 'bg-amber-50 border-amber-200'; textClass = 'text-amber-700'; fillColor = 'bg-amber-400'; fillHeight = pct+'%'; }
+                    else if (pct >= 80) { bgClass = 'bg-rose-50 border-rose-200'; textClass = 'text-rose-700'; fillColor = 'bg-rose-500'; fillHeight = pct+'%'; }
+
+                    // Generate Tooltip HTML for UOM breakdown
+                    let uomsHtml = '';
+                    if (qty > 0) {
+                        uomsHtml = Object.entries(cellData.uoms).map(([u, v]) => `
+                            <div class="flex justify-between items-center text-[10px] leading-tight">
+                                <span class="opacity-70">${u}:</span> 
+                                <span class="font-mono font-bold text-indigo-200">${v.toLocaleString()}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        uomsHtml = `<div class="text-[9px] opacity-40 italic text-center">Empty Slot</div>`;
+                    }
+
+                    html += `
+                        <td class="p-1">
+                            <div class="w-16 h-20 rounded-xl border-2 ${bgClass} flex flex-col justify-end overflow-hidden cursor-pointer hover:ring-4 ring-indigo-200 transition-all group relative shadow-inner">
+                                <div class="w-full ${fillColor} transition-all duration-700 opacity-20" style="height: ${fillHeight}"></div>
+                                
+                                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span class="text-[8px] font-black uppercase tracking-widest opacity-40 mb-1">${activeArea}</span>
+                                    <span class="text-[12px] font-black ${textClass}">${pct > 0 ? pct.toFixed(0) + '%' : 'EMP'}</span>
+                                </div>
+
+                                <div class="absolute bottom-[110%] left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col z-50 w-44 bg-slate-900 text-white p-3 rounded-2xl shadow-2xl pointer-events-none border border-slate-700">
+                                    <div class="font-black text-indigo-400 mb-2.5 uppercase tracking-widest border-b border-slate-700 pb-2 text-[9px] leading-relaxed">
+                                        <span class="text-slate-400">Loc:</span> ${activeLoc} <br>
+                                        <span class="text-slate-400">Area:</span> ${activeArea} <br>
+                                        <span class="text-white text-[11px]">R${r} - C${c}</span>
+                                    </div>
+                                    <div class="mb-2 space-y-1.5 border-b border-slate-700 pb-2">
+                                        ${uomsHtml}
+                                    </div>
+                                    <div class="flex justify-between items-center pt-0.5">
+                                        <span class="opacity-60 text-[9px] uppercase tracking-widest">Density:</span> 
+                                        <span class="font-mono font-black text-amber-400 text-[11px]">${pct.toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                });
+                html += `</tr>`;
+            });
+
+            html += `</table></div>`;
+            
+            html += `
+                <div class="flex flex-wrap items-center justify-center gap-6 mt-8 px-8 bg-slate-50/50 py-5 rounded-3xl border border-slate-100 shadow-sm w-fit mx-auto">
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-2"><i data-lucide="info" class="w-4 h-4"></i> Density Index:</div>
+                    <div class="flex items-center gap-2"><div class="w-4 h-4 rounded border-2 border-slate-200 bg-white"></div><span class="text-[10px] font-bold text-slate-500">Empty (0%)</span></div>
+                    <div class="flex items-center gap-2"><div class="w-4 h-4 rounded border-2 border-emerald-200 bg-emerald-50"></div><span class="text-[10px] font-bold text-emerald-600">Low (< 40%)</span></div>
+                    <div class="flex items-center gap-2"><div class="w-4 h-4 rounded border-2 border-amber-200 bg-amber-50"></div><span class="text-[10px] font-bold text-amber-600">Medium (40-79%)</span></div>
+                    <div class="flex items-center gap-2"><div class="w-4 h-4 rounded border-2 border-rose-200 bg-rose-50"></div><span class="text-[10px] font-bold text-rose-600">High (80%+)</span></div>
+                    <div class="w-[1px] h-6 bg-slate-200 mx-2"></div>
+                    <div class="text-[9px] font-bold text-slate-400"><span class="text-indigo-500 font-black">100% Base Ref</span> = 
+                        <span class="font-mono font-black text-slate-700 bg-white px-2 py-0.5 rounded shadow-sm ml-1 border border-slate-200">${maxQty.toLocaleString()}</span> units
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+        // ================= END HEATMAP LOGIC =================
 
         function renderAging() {
             const b = { '(1) 0-30 Day': 0, '(2) 31-60 Day': 0, '(3) 61-90 Day': 0, '(4) 91-120 Day': 0, '(5) 121-150 Day': 0, '(6) 151-180 Day': 0, '(7) 180 Day Up': 0 };
@@ -652,8 +906,8 @@
             }).join('');
         }
 
-        function renderLocSummary() {
-            const map = {}; filteredData.forEach(d => { const loc = d.LOCATION_CODE || 'NA'; if (!map[loc]) map[loc] = { q: 0, v: 0 }; map[loc].q += d.PRIMARY_TRANSACTION_QUANTITY; map[loc].v += d.AMOUNT_VALUE; });
+        function renderAreaSummary() {
+            const map = {}; filteredData.forEach(d => { const loc = d.LOCATOR_AREA || 'N/A'; if (!map[loc]) map[loc] = { q: 0, v: 0 }; map[loc].q += d.PRIMARY_TRANSACTION_QUANTITY; map[loc].v += d.AMOUNT_VALUE; });
             const body = document.getElementById('location-summary-body');
             if(!body) return;
             
